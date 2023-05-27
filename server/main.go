@@ -1,13 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 )
 
 func getPing(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusNoContent)
-	//http.StatusMethodNotAllowed
+	metodo := r.Method
+	fmt.Printf("metodo: %v\n", metodo)
+	if metodo == "GET" {
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
