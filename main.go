@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,25 +19,23 @@ func getPing(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	bookslist := []struct {
-		name      string
-		price     float32
-		inventory int
+
+	bookslist := []struct { //Struct created to handle data of the list of books
+		Name      string
+		Price     float32
+		Inventory int
 	}{
 		{"Book 1", 30.20, 2},
 		{"Book 2", 20.30, 1},
 		{"Book 3", 32.20, 5},
 	}
 
-	stringbookslist := make([]string, len(bookslist))
-
-	var responsebody string
-
-	for i, v := range bookslist {
-		stringbookslist[i] = fmt.Sprintln("name:", v.name, "\nprice:", v.price, "\ninventory:", v.inventory, "\n")
-		responsebody = fmt.Sprint(responsebody, stringbookslist[i])
+	//Encoding in JSON to send through the Writer:
+	responsebody, err := json.Marshal(bookslist)
+	if err != nil {
+		fmt.Println("error:", err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
-
 	w.Write([]byte(responsebody))
 }
 
