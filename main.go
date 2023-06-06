@@ -21,9 +21,9 @@ func getPing(w http.ResponseWriter, r *http.Request) {
 func getBooks(w http.ResponseWriter, r *http.Request) {
 
 	bookslist := []struct { //Struct created to handle data of the list of books
-		Name      string
-		Price     float32
-		Inventory int
+		Name      string  `json:"name"`
+		Price     float32 `json:"price"`
+		Inventory int     `json:"inventory"`
 	}{
 		{"Book 1", 30.20, 2},
 		{"Book 2", 20.30, 1},
@@ -36,7 +36,9 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("error:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	w.Header().Set("content-type", "application/json")
 	w.Write([]byte(responsebody))
+
 }
 
 func main() {
