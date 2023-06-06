@@ -8,7 +8,7 @@ COPY go.mod ./
 
 RUN go mod download
 
-COPY server/main.go ./
+COPY main.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /docker-http-server
 
