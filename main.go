@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-func getPing(w http.ResponseWriter, r *http.Request) {
+func Ping(w http.ResponseWriter, r *http.Request) {
 	metodo := r.Method
 	fmt.Printf("metodo: %v\n", metodo)
 	if metodo == "GET" {
@@ -16,6 +16,36 @@ func getPing(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 
+}
+
+func Books(w http.ResponseWriter, r *http.Request) {
+	metodo := r.Method
+	fmt.Printf("metodo: %v\n", metodo)
+	switch {
+	case metodo == "GET":
+		getBooks(w, r)
+	case metodo == "POST":
+		postBooks(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
+func postBooks(w http.ResponseWriter, r *http.Request) {
+	//Testing the switch:
+	testmessage := fmt.Sprintf("metodo recebido: %v\n", r.Method)
+	w.Write([]byte(testmessage))
+
+	//TO DO:
+	//Verify if the entry is in a valid format
+
+	//Verify if that book already exists in the database
+
+	//Atribute an ID to the entry
+
+	//Store the book in the database
+
+	//Return a sucess message
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +72,8 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/ping", getPing)
-	http.HandleFunc("/books", getBooks)
+	http.HandleFunc("/ping", Ping)
+	http.HandleFunc("/books", Books)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
