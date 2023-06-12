@@ -50,15 +50,32 @@ func Books(w http.ResponseWriter, r *http.Request) {
 func postBooks(w http.ResponseWriter, r *http.Request) {
 	//TO DO:
 	//Read the Json body
-	var newBook Book
+	var newBook = Book{"sem nome", -1, -1}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&newBook)
 	if err != nil {
 		fmt.Println("error:", err)
-		w.WriteHeader(http.StatusBadRequest) //Verify if the entry is in a valid format
+		w.WriteHeader(http.StatusBadRequest)
+		return
 	}
 	fmt.Printf("newBook: %+v\n", newBook)
 	fmt.Printf("bookslist: %+v", bookslist)
+
+	//Verify if the entry is in a valid format
+	switch {
+	case newBook.Name == "sem nome":
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte("Insira um nome para cadastrar o livro."))
+	case newBook.Price == -1: //-1 means that no price was added
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte("Insira um preço para cadastrar o livro."))
+	case newBook.Inventory == -1: //-1 menas that no inventory was added
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte("Insira a quantidade deste livro em estoque."))
+	default:
+
+	}
+
 	//Verify if that book already exists in the database
 
 	//Atribute an ID to the entry
