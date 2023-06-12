@@ -7,6 +7,22 @@ import (
 	"net/http"
 )
 
+type Book struct {
+	Name      string  `json:"name"`
+	Price     float32 `json:"price"`
+	Inventory int     `json:"inventory"`
+}
+
+var bookslist = []struct { //Struct created to handle data of the list of books
+	Name      string  `json:"name"`
+	Price     float32 `json:"price"`
+	Inventory int     `json:"inventory"`
+}{
+	{"Book 1", 30.20, 2},
+	{"Book 2", 20.30, 1},
+	{"Book 3", 32.20, 5},
+}
+
 func Ping(w http.ResponseWriter, r *http.Request) {
 	metodo := r.Method
 	fmt.Printf("metodo: %v\n", metodo)
@@ -32,13 +48,17 @@ func Books(w http.ResponseWriter, r *http.Request) {
 }
 
 func postBooks(w http.ResponseWriter, r *http.Request) {
-	//Testing the switch:
-	testmessage := fmt.Sprintf("metodo recebido: %v\n", r.Method)
-	w.Write([]byte(testmessage))
-
 	//TO DO:
-	//Verify if the entry is in a valid format
-
+	//Read the Json body
+	var newBook Book
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&newBook)
+	if err != nil {
+		fmt.Println("error:", err)
+		w.WriteHeader(http.StatusBadRequest) //Verify if the entry is in a valid format
+	}
+	fmt.Printf("newBook: %+v\n", newBook)
+	fmt.Printf("bookslist: %+v", bookslist)
 	//Verify if that book already exists in the database
 
 	//Atribute an ID to the entry
@@ -49,17 +69,6 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
-
-	bookslist := []struct { //Struct created to handle data of the list of books
-		Name      string  `json:"name"`
-		Price     float32 `json:"price"`
-		Inventory int     `json:"inventory"`
-	}{
-		{"Book 1", 30.20, 2},
-		{"Book 2", 20.30, 1},
-		{"Book 3", 32.20, 5},
-	}
-
 	//Encoding in JSON to send through the Writer:
 	responsebody, err := json.Marshal(bookslist)
 	if err != nil {
