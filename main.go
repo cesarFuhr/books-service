@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 type Book struct {
@@ -73,10 +74,16 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusPartialContent)
 		w.Write([]byte("Insira a quantidade deste livro em estoque."))
 	default:
-
 	}
 
 	//Verify if that book already exists in the database
+	for i := range bookslist {
+		bookAlreadyExists := strings.EqualFold(bookslist[i].Name, newBook.Name)
+		if bookAlreadyExists {
+			warning := fmt.Sprintf("This book already exists in the database: %+v", bookslist[i])
+			w.Write([]byte(warning))
+		}
+	}
 
 	//Atribute an ID to the entry
 
