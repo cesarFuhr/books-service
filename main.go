@@ -6,22 +6,26 @@ import (
 	"log"
 	"net/http"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 type Book struct {
-	Name      string  `json:"name"`
-	Price     float32 `json:"price"`
-	Inventory int     `json:"inventory"`
+	Name      string    `json:"name"`
+	Price     float32   `json:"price"`
+	Inventory int       `json:"inventory"`
+	ID        uuid.UUID `json:"id"`
 }
 
 var bookslist = []struct { //Struct created to handle data of the list of books
-	Name      string  `json:"name"`
-	Price     float32 `json:"price"`
-	Inventory int     `json:"inventory"`
+	Name      string    `json:"name"`
+	Price     float32   `json:"price"`
+	Inventory int       `json:"inventory"`
+	ID        uuid.UUID `json:"id"`
 }{
-	{"Book 1", 30.20, 2},
-	{"Book 2", 20.30, 1},
-	{"Book 3", 32.20, 5},
+	{"Book 1", 30.20, 2, uuid.New()},
+	{"Book 2", 20.30, 1, uuid.New()},
+	{"Book 3", 32.20, 5, uuid.New()},
 }
 
 func Ping(w http.ResponseWriter, r *http.Request) {
@@ -51,7 +55,7 @@ func Books(w http.ResponseWriter, r *http.Request) {
 func postBooks(w http.ResponseWriter, r *http.Request) {
 	//TO DO:
 	//Read the Json body
-	var newBook = Book{"sem nome", -1, -1}
+	var newBook = Book{"sem nome", -1, -1, uuid.Nil}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(&newBook)
 	if err != nil {
@@ -60,7 +64,7 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Printf("newBook: %+v\n", newBook)
-	fmt.Printf("bookslist: %+v", bookslist)
+	fmt.Printf("bookslist: %+v\n", bookslist)
 
 	//Verify if the entry is in a valid format
 	switch {
@@ -80,16 +84,21 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	for i := range bookslist {
 		bookAlreadyExists := strings.EqualFold(bookslist[i].Name, newBook.Name)
 		if bookAlreadyExists {
-			warning := fmt.Sprintf("This book already exists in the database: %+v", bookslist[i])
+			warning := fmt.Sprintf("Este livro já existe na base de dados: %+v", bookslist[i])
 			w.Write([]byte(warning))
+			return
 		}
 	}
 
 	//Atribute an ID to the entry
+	newBook.ID = uuid.New()
 
 	//Store the book in the database
+	bookslist = append(bookslist, newBook)
+	fmt.Printf("bookslist: %+v\n", bookslist)
 
 	//Return a sucess message
+	w.Write([]byte("Livro adicionado com sucesso"))
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
