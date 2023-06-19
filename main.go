@@ -11,83 +11,75 @@ import (
 )
 
 type Book struct {
-	Name      string    `json:"name"`
-	Price     float32   `json:"price"`
-	Inventory int       `json:"inventory"`
 	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Price     *float32  `json:"price"`
+	Inventory *int      `json:"inventory"`
 }
 
-var bookslist = []struct { //Struct created to handle data of the list of books
-	Name      string    `json:"name"`
-	Price     float32   `json:"price"`
-	Inventory int       `json:"inventory"`
-	ID        uuid.UUID `json:"id"`
-}{
-	{"Book 1", 30.20, 2, uuid.New()},
-	{"Book 2", 20.30, 1, uuid.New()},
-	{"Book 3", 32.20, 5, uuid.New()},
-}
+var bookslist []Book
 
 func Ping(w http.ResponseWriter, r *http.Request) {
-	metodo := r.Method
-	fmt.Printf("metodo: %v\n", metodo)
-	if metodo == "GET" {
+	method := r.Method
+	if method == http.MethodGet {
 		w.WriteHeader(http.StatusNoContent)
+		return
 	} else {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-
 }
 
 func Books(w http.ResponseWriter, r *http.Request) {
-	metodo := r.Method
-	fmt.Printf("metodo: %v\n", metodo)
-	switch {
-	case metodo == "GET":
+	method := r.Method
+	switch method {
+	case http.MethodGet:
 		getBooks(w, r)
-	case metodo == "POST":
+		return
+	case http.MethodPost:
 		postBooks(w, r)
+		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
 }
 
 func postBooks(w http.ResponseWriter, r *http.Request) {
-	//TO DO:
-	//Read the Json body
-	var newBook = Book{"sem nome", -1, -1, uuid.Nil}
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&newBook)
+	//Read the Json body and save the entry to newBook
+	var newBook Book
+	err := json.NewDecoder(r.Body).Decode(&newBook)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Println("error:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
-	}
-	fmt.Printf("newBook: %+v\n", newBook)
-	fmt.Printf("bookslist: %+v\n", bookslist)
-
-	//Verify if the entry is in a valid format
-	switch {
-	case newBook.Name == "sem nome":
-		w.WriteHeader(http.StatusPartialContent)
-		w.Write([]byte("Insira um nome para cadastrar o livro."))
-	case newBook.Price == -1: //-1 means that no price was added
-		w.WriteHeader(http.StatusPartialContent)
-		w.Write([]byte("Insira um preço para cadastrar o livro."))
-	case newBook.Inventory == -1: //-1 menas that no inventory was added
-		w.WriteHeader(http.StatusPartialContent)
-		w.Write([]byte("Insira a quantidade deste livro em estoque."))
-	default:
 	}
 
 	//Verify if that book already exists in the database
 	for i := range bookslist {
 		bookAlreadyExists := strings.EqualFold(bookslist[i].Name, newBook.Name)
 		if bookAlreadyExists {
-			warning := fmt.Sprintf("Este livro já existe na base de dados: %+v", bookslist[i])
+			warning := fmt.Sprint("Este livro já existe na base de dados:\nID: ", bookslist[i].ID, "\nName: ", bookslist[i].Name, "\nPrice: ", *bookslist[i].Price, "\nInventory: ", *bookslist[i].Inventory)
 			w.Write([]byte(warning))
 			return
 		}
+	}
+
+	//Verify if the entry is in a valid format
+	blankFields := ""
+	if newBook.Name == "" {
+		blankFields += "Insira um nome para cadastrar o livro.\n"
+	}
+	if newBook.Price == nil {
+		blankFields += "Insira um preço para cadastrar o livro.\n"
+	}
+	if newBook.Inventory == nil {
+		blankFields += "Insira a quantidade deste livro em estoque.\n"
+	}
+	if blankFields != "" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(blankFields))
+		return
 	}
 
 	//Atribute an ID to the entry
@@ -95,22 +87,21 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 
 	//Store the book in the database
 	bookslist = append(bookslist, newBook)
-	fmt.Printf("bookslist: %+v\n", bookslist)
 
 	//Return a sucess message
-	w.Write([]byte("Livro adicionado com sucesso"))
+	w.Write([]byte("Livro adicionado com sucesso."))
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
 	//Encoding in JSON to send through the Writer:
 	responsebody, err := json.Marshal(bookslist)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Println("error:", err)
 		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("content-type", "application/json")
 	w.Write([]byte(responsebody))
-
 }
 
 func main() {
