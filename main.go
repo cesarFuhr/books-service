@@ -95,6 +95,7 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	bookslist = append(bookslist, newBook)
 
 	//Return a sucess message
+	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Livro adicionado com sucesso."))
 }
 
