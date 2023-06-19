@@ -59,7 +59,13 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	for i := range bookslist {
 		bookAlreadyExists := strings.EqualFold(bookslist[i].Name, newBook.Name)
 		if bookAlreadyExists {
-			warning := fmt.Sprint("Este livro já existe na base de dados:\nID: ", bookslist[i].ID, "\nName: ", bookslist[i].Name, "\nPrice: ", *bookslist[i].Price, "\nInventory: ", *bookslist[i].Inventory)
+			showBook, err := json.Marshal(bookslist[i])
+			if err != nil {
+				log.Println("error:", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			warning := fmt.Sprint("Este livro já existe na base de dados:\n" + string(showBook))
 			w.Write([]byte(warning))
 			return
 		}
