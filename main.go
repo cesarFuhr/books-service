@@ -1,13 +1,24 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
+
+	//"strings"
 
 	"github.com/google/uuid"
+	_ "github.com/lib/pq"
+)
+
+const (
+	host     = "localhost"
+	port     = 5432
+	user     = "postgres"
+	password = "chevas"
+	dbname   = "booksdb"
 )
 
 type Book struct {
@@ -18,6 +29,7 @@ type Book struct {
 }
 
 var bookslist []Book
+var dbObject *sql.DB
 
 func Ping(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
@@ -50,13 +62,13 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	var newBook Book
 	err := json.NewDecoder(r.Body).Decode(&newBook)
 	if err != nil {
-		log.Println("error:", err)
+		log.Println("error while decoding the json entry:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	//Verify if that book already exists in the database
-	for i := range bookslist {
+	/*for i := range bookslist {
 		bookAlreadyExists := strings.EqualFold(bookslist[i].Name, newBook.Name)
 		if bookAlreadyExists {
 			showBook, err := json.Marshal(bookslist[i])
@@ -69,7 +81,7 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(warning))
 			return
 		}
-	}
+	} */
 
 	//Verify if the entry is in a valid format
 	blankFields := ""
@@ -92,11 +104,33 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	newBook.ID = uuid.New()
 
 	//Store the book in the database
-	bookslist = append(bookslist, newBook)
+	sqlStatement := `
+INSERT INTO bookstable (id, name, price, inventory)
+VALUES ($1, $2, $3, $4)
+RETURNING *`
 
-	//Return a sucess message
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Livro adicionado com sucesso."))
+	var storedBook Book
+	returnedRow := dbObject.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
+
+	//Check and Return a sucess message
+	switch err := returnedRow.Scan(&storedBook.ID, &storedBook.Name, &storedBook.Price, &storedBook.Inventory); err {
+	case sql.ErrNoRows:
+		log.Println("No rows were returned!")
+		return
+	case nil:
+		showBook, err := json.Marshal(storedBook)
+		if err != nil {
+			log.Println("error while Marshalling storedBook:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte("Livro adicionado com sucesso:\n" + string(showBook)))
+		return
+	default:
+		panic(err)
+	}
+
 }
 
 func getBooks(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +146,26 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	//set database:
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
+		"password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		panic(err)
+	}
+	dbObject = db
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Successfully connected!")
+
+	//start http server:
 	http.HandleFunc("/ping", Ping)
 	http.HandleFunc("/books", Books)
 
