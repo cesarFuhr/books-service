@@ -68,20 +68,25 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Verify if that book already exists in the database
-	/*for i := range bookslist {
-		bookAlreadyExists := strings.EqualFold(bookslist[i].Name, newBook.Name)
-		if bookAlreadyExists {
-			showBook, err := json.Marshal(bookslist[i])
-			if err != nil {
-				log.Println("error:", err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-			warning := fmt.Sprint("Este livro já existe na base de dados:\n" + string(showBook))
-			w.Write([]byte(warning))
+	sqlStatementQuery := `SELECT id, name, price, inventory  FROM bookstable WHERE name=$1;`
+	var returnedBook Book
+	foundRow := dbObject.QueryRow(sqlStatementQuery, newBook.Name)
+	switch err := foundRow.Scan(&returnedBook.ID, &returnedBook.Name, &returnedBook.Price, &returnedBook.Inventory); err {
+	case sql.ErrNoRows:
+		break
+	case nil:
+		showBook, err := json.Marshal(returnedBook)
+		if err != nil {
+			log.Println("error while Marshalling returnedBook:", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-	} */
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("Este livro já existe na base de dados:\n" + string(showBook)))
+		return
+	default:
+		panic(err)
+	}
 
 	//Verify if the entry is in a valid format
 	blankFields := ""
@@ -104,16 +109,16 @@ func postBooks(w http.ResponseWriter, r *http.Request) {
 	newBook.ID = uuid.New()
 
 	//Store the book in the database
-	sqlStatement := `
+	sqlStatementCreate := `
 INSERT INTO bookstable (id, name, price, inventory)
 VALUES ($1, $2, $3, $4)
 RETURNING *`
 
 	var storedBook Book
-	returnedRow := dbObject.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
+	createdRow := dbObject.QueryRow(sqlStatementCreate, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
 
 	//Check and Return a sucess message
-	switch err := returnedRow.Scan(&storedBook.ID, &storedBook.Name, &storedBook.Price, &storedBook.Inventory); err {
+	switch err := createdRow.Scan(&storedBook.ID, &storedBook.Name, &storedBook.Price, &storedBook.Inventory); err {
 	case sql.ErrNoRows:
 		log.Println("No rows were returned!")
 		return
