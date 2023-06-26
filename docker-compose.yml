@@ -1,0 +1,19 @@
+version: "3.8"
+name: books-service
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    depends_on:
+      - db
+
+  db:
+    image: postgres:15.3-bullseye
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: chevas
+      POSTGRES_DB: booksdb
+    ports: 
+      - "5432:5432"
