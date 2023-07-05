@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	host     = "db"
+	host     = "db" //outside container: "localhost"; inside container: "db"
 	port     = 5432
 	user     = "postgres"
 	password = "chevas"
@@ -52,35 +52,33 @@ func connectDb() *sql.DB {
 }
 
 /* Verifies if there is already a book with the name of "newBook" in the database. If yes, returns it. */
-func SameNameOnDB(newBook Book) (unique bool, returnedBook Book) {
+func sameNameOnDB(newBook Book) (unique bool, returnedBook Book) {
 	sqlStatement := `SELECT id, name, price, inventory  FROM bookstable WHERE name=$1;`
 	foundRow := dbObject.QueryRow(sqlStatement, newBook.Name)
-	switch err := foundRow.Scan(&returnedBook.ID, &returnedBook.Name, &returnedBook.Price, &returnedBook.Inventory); err {
+	var bookToReturn Book
+	switch err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
 	case sql.ErrNoRows:
-		unique = true
-		return
+		return true, Book{}
 	case nil:
-		unique = false
-		return
+		return false, bookToReturn
 	default:
 		panic(err)
 	}
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
-func StoreOnDB(newBook Book) (fail bool, storedBook Book) {
+func storeOnDB(newBook Book) (fail bool, storedBook Book) {
 	sqlStatement := `
 	INSERT INTO bookstable (id, name, price, inventory)
 	VALUES ($1, $2, $3, $4)
 	RETURNING *`
 	createdRow := dbObject.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
-	switch err := createdRow.Scan(&storedBook.ID, &storedBook.Name, &storedBook.Price, &storedBook.Inventory); err {
+	var bookToReturn Book
+	switch err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
 	case sql.ErrNoRows:
-		fail = true
-		return
+		return true, Book{}
 	case nil:
-		fail = false
-		return
+		return false, bookToReturn
 	default:
 		panic(err)
 	}
@@ -89,7 +87,7 @@ func StoreOnDB(newBook Book) (fail bool, storedBook Book) {
 //==========HTTP COMMUNICATION FUNCTIONS:===========
 
 /* Tests the http server connection.  */
-func Ping(w http.ResponseWriter, r *http.Request) {
+func ping(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	if method == http.MethodGet {
 		w.WriteHeader(http.StatusNoContent)
@@ -101,14 +99,14 @@ func Ping(w http.ResponseWriter, r *http.Request) {
 }
 
 /* Handles a call to /books and redirects depending on the requested action.  */
-func Books(w http.ResponseWriter, r *http.Request) {
+func books(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	switch method {
 	case http.MethodGet:
 		getBooks(w, r)
 		return
 	case http.MethodPost:
-		CreateBook(w, r)
+		createBook(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -117,7 +115,7 @@ func Books(w http.ResponseWriter, r *http.Request) {
 }
 
 /* Verifies if all entry fields are filled and returns a warning message if so. */
-func FilledFields(newBook Book) string {
+func filledFields(newBook Book) string {
 	blankFields := ""
 	if newBook.Name == "" {
 		blankFields += "Insira um nome para cadastrar o livro.\n"
@@ -132,7 +130,7 @@ func FilledFields(newBook Book) string {
 }
 
 /* Stores the entry as a new book in the database, if there isn't one with the same name yet. */
-func CreateBook(w http.ResponseWriter, r *http.Request) {
+func createBook(w http.ResponseWriter, r *http.Request) {
 
 	var newBook Book
 	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
@@ -142,14 +140,15 @@ func CreateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blankFields := FilledFields(newBook) //Verify if all entry fields are filled.
+	blankFields := filledFields(newBook) //Verify if all entry fields are filled.
 	if blankFields != "" {
+		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(blankFields))
 		return
 	}
 
-	unique, returnedBook := SameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	unique, returnedBook := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
 	if !unique {
 		sameNameBook, err := json.Marshal(returnedBook)
 		if err != nil {
@@ -157,15 +156,17 @@ func CreateBook(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Este livro já existe na base de dados:\n" + string(sameNameBook)))
+		w.Write([]byte(string(sameNameBook)))
 		return
 	}
 
 	newBook.ID = uuid.New() //Atribute an ID to the entry
 
-	fail, storedBook := StoreOnDB(newBook) //Store the book in the database
+	fail, storedBook := storeOnDB(newBook) //Store the book in the database
 	if fail {
+		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("Não foi possível adicionar o livro:\n"))
 		return
@@ -176,8 +177,9 @@ func CreateBook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Livro adicionado com sucesso:\n" + string(showBook)))
+	w.Write([]byte(string(showBook)))
 	return
 }
 
@@ -201,8 +203,8 @@ func main() {
 	defer dbObject.Close()
 
 	//start http server:
-	http.HandleFunc("/ping", Ping)
-	http.HandleFunc("/books", Books)
+	http.HandleFunc("/ping", ping)
+	http.HandleFunc("/books", books)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

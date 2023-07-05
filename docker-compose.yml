@@ -6,14 +6,22 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile
+    ports:
+      - "8080:8080"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
-    image: postgres:15.3-bullseye
+    image: postgres:14.6-bullseye
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: always
     environment:
       POSTGRES_PASSWORD: chevas
       POSTGRES_DB: booksdb
     ports: 
-      - "5432:5432"
+      - "5000:5432"
