@@ -25,6 +25,10 @@ type Book struct {
 	Price     *float32  `json:"price"`
 	Inventory *int      `json:"inventory"`
 }
+type errorResponse struct {
+	Error_code    int    `json:"error_code"`
+	Error_message string `json:"error_message"`
+}
 
 var bookslist []Book
 var dbObject *sql.DB
@@ -115,18 +119,22 @@ func books(w http.ResponseWriter, r *http.Request) {
 }
 
 /* Verifies if all entry fields are filled and returns a warning message if so. */
-func filledFields(newBook Book) string {
-	blankFields := ""
+func filledFields(newBook Book) bool {
+	var filled bool
 	if newBook.Name == "" {
-		blankFields += "Enter a name to register the book.\n"
+		filled = false
+		return filled
 	}
 	if newBook.Price == nil {
-		blankFields += "Enter a price to register the book.\n"
+		filled = false
+		return filled
 	}
 	if newBook.Inventory == nil {
-		blankFields += "Enter the quantity of this book in stock.\n"
+		filled = false
+		return filled
 	}
-	return blankFields
+	filled = true
+	return filled
 }
 
 /* Stores the entry as a new book in the database, if there isn't one with the same name yet. */
@@ -136,15 +144,15 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
 	if err != nil {
 		log.Println("error while decoding the json entry:", err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest) //SHOULDN'T IT BE STATUS INTERNAL SERVER ERROR?
 		return
 	}
 
-	blankFields := filledFields(newBook) //Verify if all entry fields are filled.
-	if blankFields != "" {
+	filled := filledFields(newBook) //Verify if all entry fields are filled.
+	if !filled {
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(blankFields))
+		w.Write([]byte("All the fields - name, price and inventory - must be filled correctly."))
 		return
 	}
 
