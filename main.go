@@ -118,13 +118,13 @@ func books(w http.ResponseWriter, r *http.Request) {
 func filledFields(newBook Book) string {
 	blankFields := ""
 	if newBook.Name == "" {
-		blankFields += "Insira um nome para cadastrar o livro.\n"
+		blankFields += "Enter a name to register the book.\n"
 	}
 	if newBook.Price == nil {
-		blankFields += "Insira um preço para cadastrar o livro.\n"
+		blankFields += "Enter a price to register the book.\n"
 	}
 	if newBook.Inventory == nil {
-		blankFields += "Insira a quantidade deste livro em estoque.\n"
+		blankFields += "Enter the quantity of this book in stock.\n"
 	}
 	return blankFields
 }
@@ -168,7 +168,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	if fail {
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Não foi possível adicionar o livro:\n"))
+		w.Write([]byte("Unable to store the new book.\n"))
 		return
 	}
 	showBook, err := json.Marshal(storedBook)
