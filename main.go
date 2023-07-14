@@ -143,16 +143,22 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	var newBook Book
 	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
 	if err != nil {
-		log.Println("error while decoding the json entry:", err)
+		log.Println(err)
 		w.WriteHeader(http.StatusBadRequest) //SHOULDN'T IT BE STATUS INTERNAL SERVER ERROR?
 		return
 	}
 
 	filled := filledFields(newBook) //Verify if all entry fields are filled.
 	if !filled {
+		error100, err := json.Marshal(errorResponse{100, "All the fields - name, price and inventory - must be filled correctly."})
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("All the fields - name, price and inventory - must be filled correctly."))
+		w.Write(error100)
 		return
 	}
 
@@ -160,13 +166,19 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	if !unique {
 		sameNameBook, err := json.Marshal(returnedBook)
 		if err != nil {
-			log.Println("error while Marshalling returnedBook:", err)
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		error101, err := json.Marshal(errorResponse{101, "There is already a book with this name on database:"})
+		if err != nil {
+			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(string(sameNameBook)))
+		w.Write(append(error101, sameNameBook...))
 		return
 	}
 
@@ -174,20 +186,19 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 	fail, storedBook := storeOnDB(newBook) //Store the book in the database
 	if fail {
-		w.Header().Set("content-type", "application/json")
+		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("Unable to store the new book.\n"))
 		return
 	}
 	showBook, err := json.Marshal(storedBook)
 	if err != nil {
-		log.Println("error while Marshalling storedBook:", err)
+		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("content-type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(string(showBook)))
+	w.Write(showBook)
 	return
 }
 
