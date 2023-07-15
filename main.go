@@ -25,10 +25,6 @@ type Book struct {
 	Price     *float32  `json:"price"`
 	Inventory *int      `json:"inventory"`
 }
-type errorResponse struct {
-	Code    int    `json:"error_code"`
-	Message string `json:"error_message"`
-}
 
 var bookslist []Book
 var dbObject *sql.DB
@@ -56,15 +52,15 @@ func connectDb() *sql.DB {
 }
 
 /* Verifies if there is already a book with the name of "newBook" in the database. If yes, returns it. */
-func sameNameOnDB(newBook Book) (unique bool, returnedBook Book) {
-	sqlStatement := `SELECT id, name, price, inventory  FROM bookstable WHERE name=$1;`
+func sameNameOnDB(newBook Book) (unique bool) {
+	sqlStatement := `SELECT true FROM bookstable WHERE name=$1;`
 	foundRow := dbObject.QueryRow(sqlStatement, newBook.Name)
-	var bookToReturn Book
-	switch err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
+	var bookAlreadyExists bool
+	switch err := foundRow.Scan(&bookAlreadyExists); err {
 	case sql.ErrNoRows:
-		return true, Book{}
+		return true
 	case nil:
-		return false, bookToReturn
+		return false
 	default:
 		panic(err)
 	}
@@ -144,15 +140,13 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
 	if err != nil {
 		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	filled := filledFields(newBook) //Verify if all entry fields are filled.
-	if !filled {
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(errResonseCreateBookBadInput)
+		errR := errResponse{
+			Code:    errResponseCreateBookInvalidJSON.Code,
+			Message: errResponseCreateBookInvalidJSON.Message + err.Error(),
+		}
+		err := json.NewEncoder(w).Encode(errR)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -161,20 +155,25 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unique, _ /*returnedBook*/ := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
-	if !unique {
-		/*
-			Keeping this block until we decide what to do with "returnedBook"
-
-			sameNameBook, err := json.Marshal(returnedBook)
-				if err != nil {
-					log.Println(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}	*/
+	filled := filledFields(newBook) //Verify if all entry fields are filled.
+	if !filled {
 		w.Header().Set("content-type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(errResonseCreateBookNameConflict)
+		err := json.NewEncoder(w).Encode(errResponseCreateBookBlankFileds)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	unique := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	if !unique {
+
+		w.Header().Set("content-type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		err := json.NewEncoder(w).Encode(errResponseCreateBookNameConflict)
 		if err != nil {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
