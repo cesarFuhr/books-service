@@ -1,8 +1,0 @@
-type errorResponse struct {
-	Error_code    int    `json:"error_code"`
-	Error_message string `json:"error_message"`
-}
-
-100, "All the fields - name, price and inventory - must be filled correctly."
-
-101, "There is already a book with this name on database:"
