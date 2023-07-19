@@ -55,32 +55,24 @@ func connectDb() *sql.DB {
 	return db
 }
 
-func migration(upDown string) {
+func migrationUp() error {
 	driver, err := postgres.WithInstance(dbObject, &postgres.Config{})
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("migrating up: %w", err)
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
 		"file://migrations", //HOW IS THE URL INSIDE THE CONTAINER?	WHAT IS RELATIVE/ABSOLUTE PATH?
 		"postgres", driver)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("migrating up: %w", err)
 	}
-	if upDown == "up" {
-		m.Up()
-		if err != nil {
-			panic(err)
-		}
-		return
+
+	m.Up()
+	if err != nil {
+		return fmt.Errorf("migrating up: %w", err)
 	}
-	if upDown == "down" {
-		m.Down()
-		if err != nil {
-			panic(err)
-		}
-		return
-	}
+	return nil
 }
 
 /* Verifies if there is already a book with the name of "newBook" in the database. If yes, returns it. */
@@ -255,8 +247,10 @@ func main() {
 	defer dbObject.Close()
 
 	//apply migrations:
-	migration("up")
-	defer migration("down") //how to exit the program to test this???????????
+	err := migrationUp()
+	if err != nil {
+		panic(err)
+	}
 
 	//start http server:
 	http.HandleFunc("/ping", ping)
