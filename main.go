@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -13,14 +14,6 @@ import (
 
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-)
-
-const (
-	host     = "db" //outside container: "localhost"; inside container: "db"
-	port     = 5432
-	user     = "postgres"
-	password = "chevas"
-	dbname   = "booksdb"
 )
 
 type Book struct {
@@ -37,11 +30,8 @@ var dbObject *sql.DB
 
 /* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
 func connectDb() *sql.DB {
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
-		"password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
 
-	db, err := sql.Open("postgres", psqlInfo)
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}
