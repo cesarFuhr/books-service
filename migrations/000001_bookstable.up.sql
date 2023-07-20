@@ -1,4 +1,4 @@
-CREATE TABLE public.bookstable
+CREATE TABLE IF NOT EXISTS public.bookstable
 (
     id uuid PRIMARY KEY NOT NULL,
     name text   UNIQUE NOT NULL,

@@ -7,6 +7,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
@@ -49,6 +53,26 @@ func connectDb() *sql.DB {
 
 	fmt.Println("Successfully connected!")
 	return db
+}
+
+func migrationUp() error {
+	driver, err := postgres.WithInstance(dbObject, &postgres.Config{})
+	if err != nil {
+		return fmt.Errorf("migrating up: %w", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
+		"file://migrations", //HOW IS THE URL INSIDE THE CONTAINER?	WHAT IS RELATIVE/ABSOLUTE PATH?
+		"postgres", driver)
+	if err != nil {
+		return fmt.Errorf("migrating up: %w", err)
+	}
+
+	m.Up()
+	if err != nil {
+		return fmt.Errorf("migrating up: %w", err)
+	}
+	return nil
 }
 
 /* Verifies if there is already a book with the name of "newBook" in the database. If yes, returns it. */
@@ -221,6 +245,12 @@ func main() {
 	//connect to db:
 	dbObject = connectDb()
 	defer dbObject.Close()
+
+	//apply migrations:
+	err := migrationUp()
+	if err != nil {
+		panic(err)
+	}
 
 	//start http server:
 	http.HandleFunc("/ping", ping)
