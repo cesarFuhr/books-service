@@ -147,6 +147,18 @@ func filledFields(newBook Book) bool {
 	return filled
 }
 
+/*Writes a JSON response into a http.ResponseWriter. */
+func responseJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(status)
+	err := json.NewEncoder(w).Encode(body)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
 /* Stores the entry as a new book in the database, if there isn't one with the same name yet. */
 func createBook(w http.ResponseWriter, r *http.Request) {
 
@@ -154,47 +166,23 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
 	if err != nil {
 		log.Println(err)
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
 		errR := errResponse{
 			Code:    errResponseCreateBookInvalidJSON.Code,
 			Message: errResponseCreateBookInvalidJSON.Message + err.Error(),
 		}
-		err := json.NewEncoder(w).Encode(errR)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
 	filled := filledFields(newBook) //Verify if all entry fields are filled.
 	if !filled {
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(errResponseCreateBookBlankFileds)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		responseJSON(w, http.StatusBadRequest, errResponseCreateBookBlankFileds)
 		return
 	}
 
 	unique := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
 	if !unique {
-
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(errResponseCreateBookNameConflict)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		//	w.Write(append(error, sameNameBook...))
+		responseJSON(w, http.StatusBadRequest, errResponseCreateBookNameConflict)
 		return
 	}
 
@@ -206,14 +194,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	err = json.NewEncoder(w).Encode(storedBook)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	responseJSON(w, http.StatusCreated, storedBook)
 	return
 }
 
