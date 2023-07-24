@@ -3,13 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/google/uuid"
@@ -25,78 +21,6 @@ type Book struct {
 
 var bookslist []Book
 var dbObject *sql.DB
-
-//==============DATABASE FUNCTIONS:=================
-
-/* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
-func connectDb() *sql.DB {
-
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-	if err != nil {
-		panic(err)
-	}
-
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Successfully connected!")
-	return db
-}
-
-func migrationUp() error {
-	driver, err := postgres.WithInstance(dbObject, &postgres.Config{})
-	if err != nil {
-		return fmt.Errorf("migrating up: %w", err)
-	}
-
-	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations", //HOW IS THE URL INSIDE THE CONTAINER?	WHAT IS RELATIVE/ABSOLUTE PATH?
-		"postgres", driver)
-	if err != nil {
-		return fmt.Errorf("migrating up: %w", err)
-	}
-
-	m.Up()
-	if err != nil {
-		return fmt.Errorf("migrating up: %w", err)
-	}
-	return nil
-}
-
-/* Verifies if there is already a book with the name of "newBook" in the database. If yes, returns it. */
-func sameNameOnDB(newBook Book) (unique bool) {
-	sqlStatement := `SELECT true FROM bookstable WHERE name=$1;`
-	foundRow := dbObject.QueryRow(sqlStatement, newBook.Name)
-	var bookAlreadyExists bool
-	switch err := foundRow.Scan(&bookAlreadyExists); err {
-	case sql.ErrNoRows:
-		return true
-	case nil:
-		return false
-	default:
-		panic(err)
-	}
-}
-
-/* Stores the book into the database, checks and returns it if succeed. */
-func storeOnDB(newBook Book) (fail bool, storedBook Book) {
-	sqlStatement := `
-	INSERT INTO bookstable (id, name, price, inventory)
-	VALUES ($1, $2, $3, $4)
-	RETURNING *`
-	createdRow := dbObject.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
-	var bookToReturn Book
-	switch err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
-	case sql.ErrNoRows:
-		return true, Book{}
-	case nil:
-		return false, bookToReturn
-	default:
-		panic(err)
-	}
-}
 
 //==========HTTP COMMUNICATION FUNCTIONS:===========
 
@@ -147,6 +71,18 @@ func filledFields(newBook Book) bool {
 	return filled
 }
 
+/*Writes a JSON response into a http.ResponseWriter. */
+func responseJSON(w http.ResponseWriter, status int, body any) {
+	w.Header().Set("content-type", "application/json")
+	w.WriteHeader(status)
+	err := json.NewEncoder(w).Encode(body)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
 /* Stores the entry as a new book in the database, if there isn't one with the same name yet. */
 func createBook(w http.ResponseWriter, r *http.Request) {
 
@@ -154,47 +90,23 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
 	if err != nil {
 		log.Println(err)
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
 		errR := errResponse{
 			Code:    errResponseCreateBookInvalidJSON.Code,
 			Message: errResponseCreateBookInvalidJSON.Message + err.Error(),
 		}
-		err := json.NewEncoder(w).Encode(errR)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
 	filled := filledFields(newBook) //Verify if all entry fields are filled.
 	if !filled {
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(errResponseCreateBookBlankFileds)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
+		responseJSON(w, http.StatusBadRequest, errResponseCreateBookBlankFileds)
 		return
 	}
 
 	unique := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
 	if !unique {
-
-		w.Header().Set("content-type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		err := json.NewEncoder(w).Encode(errResponseCreateBookNameConflict)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		//	w.Write(append(error, sameNameBook...))
+		responseJSON(w, http.StatusBadRequest, errResponseCreateBookNameConflict)
 		return
 	}
 
@@ -206,14 +118,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("content-type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	err = json.NewEncoder(w).Encode(storedBook)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+	responseJSON(w, http.StatusCreated, storedBook)
 	return
 }
 
