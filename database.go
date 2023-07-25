@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/google/uuid"
 )
 
 //==============DATABASE FUNCTIONS:=================
@@ -61,6 +62,22 @@ func sameNameOnDB(newBook Book) (unique bool) {
 	default:
 		panic(err)
 	}
+}
+
+/* Search a book in database based on ID and returns it if succeed. */
+func searchById(id uuid.UUID) (empty bool, storedBook Book) {
+	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
+	foundRow := dbObject.QueryRow(sqlStatement, id)
+	var bookToReturn Book
+	switch err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
+	case sql.ErrNoRows:
+		return true, Book{}
+	case nil:
+		return false, bookToReturn
+	default:
+		panic(err)
+	}
+
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */

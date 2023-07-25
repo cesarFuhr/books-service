@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
@@ -34,6 +35,38 @@ func ping(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+/* Handles a call to /books/(exected id here) and redirects depending on the requested action.  */
+func bookById(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	if method == http.MethodGet {
+		getBookById(w, r)
+		return
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+}
+
+/* Return the book with that specific ID. */
+func getBookById(w http.ResponseWriter, r *http.Request) {
+	//Isolating ID:
+	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
+	id, err := uuid.Parse(justId)
+	if err != nil {
+		log.Println(err)
+		responseJSON(w, http.StatusBadRequest, errIdInvalidFormat)
+		return
+	}
+	//Searching for that ID on database:
+	empty, returnedBook := searchById(id)
+	if empty {
+		w.WriteHeader(http.StatusNoContent) //WE SHOULD DECIDE HOW TO ANSWER THIS. MAYBE A 404(NOTFOUND), BUT THAT WOULD BE A CLIENT ERROR, WHAT I THINK IS NOT THE CASE.
+		return
+	}
+	responseJSON(w, http.StatusOK, returnedBook)
+	return
 }
 
 /* Handles a call to /books and redirects depending on the requested action.  */
@@ -150,6 +183,7 @@ func main() {
 	//start http server:
 	http.HandleFunc("/ping", ping)
 	http.HandleFunc("/books", books)
+	http.HandleFunc("/books/", bookById)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
