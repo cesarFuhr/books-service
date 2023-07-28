@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -60,13 +62,26 @@ func getBookById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//Searching for that ID on database:
-	empty, returnedBook := searchById(id)
-	if empty {
-		w.WriteHeader(http.StatusNoContent) //WE SHOULD DECIDE HOW TO ANSWER THIS. MAYBE A 404(NOTFOUND), BUT THAT WOULD BE A CLIENT ERROR, WHAT I THINK IS NOT THE CASE.
-		return
+	returnedBook, err := searchById(id)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		{
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Println(err)
+			return
+		}
+	case err != nil:
+		{
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Println(err)
+			return
+		}
+	default:
+		{
+			responseJSON(w, http.StatusOK, returnedBook)
+			return
+		}
 	}
-	responseJSON(w, http.StatusOK, returnedBook)
-	return
 }
 
 /* Handles a call to /books and redirects depending on the requested action.  */
