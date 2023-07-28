@@ -70,7 +70,7 @@ func getBookById(w http.ResponseWriter, r *http.Request) {
 			fmt.Println(err)
 			return
 		}
-	case err != nil:
+	case errors.Unwrap(err) != nil:
 		{
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Println(err)

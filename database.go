@@ -69,14 +69,8 @@ func searchById(id uuid.UUID) (storedBook Book, empty error) {
 	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
 	foundRow := dbObject.QueryRow(sqlStatement, id)
 	var bookToReturn Book
-	switch err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
-	case sql.ErrNoRows:
-		return Book{}, fmt.Errorf("ID not found: %w", err)
-	case nil:
-		return bookToReturn, nil
-	default:
-		return Book{}, fmt.Errorf("searching by ID: %w", err)
-	}
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+	return bookToReturn, fmt.Errorf("searching by ID: %w", err)
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
