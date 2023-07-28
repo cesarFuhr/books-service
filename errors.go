@@ -8,4 +8,4 @@ type errResponse struct {
 var errResponseCreateBookBlankFileds = errResponse{100, "all the fields - name, price and inventory - must be filled correctly."}
 var errResponseCreateBookNameConflict = errResponse{101, "there is already a book with this name on database."}
 var errResponseCreateBookInvalidJSON = errResponse{102, "invalid json request."}
-var errIdInvalidFormat = errResponse{103, "the endpoint is not a valid format ID. Must be /books/{uuid}"}
+var errResponseIdInvalidFormat = errResponse{103, "the endpoint is not a valid format ID. Must be /books/{uuid}"}

@@ -36,7 +36,7 @@ func migrationUp() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations", //HOW IS THE URL INSIDE THE CONTAINER?	WHAT IS RELATIVE/ABSOLUTE PATH?
+		"file://migrations",
 		"postgres", driver)
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
@@ -64,19 +64,27 @@ func sameNameOnDB(newBook Book) (unique bool) {
 	}
 }
 
+var bookNotFound error
+
 /* Search a book in database based on ID and returns it if succeed. */
-func searchById(id uuid.UUID) (storedBook Book, empty error) {
+func searchById(id uuid.UUID) (Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
 	foundRow := dbObject.QueryRow(sqlStatement, id)
 	var bookToReturn Book
-	switch err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory); err {
-	case sql.ErrNoRows:
-		return Book{}, fmt.Errorf("ID not found: %w", err)
-	case nil:
-		return bookToReturn, nil
-	default:
-		return Book{}, fmt.Errorf("searching by ID: %w", err)
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			{
+				bookNotFound = sql.ErrNoRows //Does it resolve the problem of using SQL on main() side or it's just an useless step?
+				return Book{}, fmt.Errorf("searching by ID: %w", bookNotFound)
+			}
+		default:
+			return Book{}, fmt.Errorf("searching by ID: %w", err)
+		}
 	}
+
+	return bookToReturn, nil
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */

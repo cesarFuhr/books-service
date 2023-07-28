@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -58,30 +58,23 @@ func getBookById(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(justId)
 	if err != nil {
 		log.Println(err)
-		responseJSON(w, http.StatusBadRequest, errIdInvalidFormat)
+		responseJSON(w, http.StatusBadRequest, errResponseIdInvalidFormat)
 		return
 	}
 	//Searching for that ID on database:
 	returnedBook, err := searchById(id)
-	switch {
-	case errors.Is(err, sql.ErrNoRows):
-		{
+	if err != nil {
+		if errors.Is(err, bookNotFound) {
+			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
-			fmt.Println(err)
 			return
 		}
-	case err != nil:
-		{
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Println(err)
-			return
-		}
-	default:
-		{
-			responseJSON(w, http.StatusOK, returnedBook)
-			return
-		}
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+
+	responseJSON(w, http.StatusOK, returnedBook)
 }
 
 /* Handles a call to /books and redirects depending on the requested action.  */
@@ -167,7 +160,6 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	responseJSON(w, http.StatusCreated, storedBook)
-	return
 }
 
 //FIX IT CONSIDERING STORAGE ON DATABASE.
@@ -192,7 +184,8 @@ func main() {
 	//apply migrations:
 	err := migrationUp()
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		os.Exit(1)
 	}
 
 	//start http server:
