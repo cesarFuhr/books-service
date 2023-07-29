@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 
@@ -64,7 +65,7 @@ func sameNameOnDB(newBook Book) (unique bool) {
 	}
 }
 
-var bookNotFound error
+var errBookNotFound = errors.New("book not found")
 
 /* Search a book in database based on ID and returns it if succeed. */
 func searchById(id uuid.UUID) (Book, error) {
@@ -76,8 +77,7 @@ func searchById(id uuid.UUID) (Book, error) {
 		switch err {
 		case sql.ErrNoRows:
 			{
-				bookNotFound = sql.ErrNoRows //Does it resolve the problem of using SQL on main() side or it's just an useless step?
-				return Book{}, fmt.Errorf("searching by ID: %w", bookNotFound)
+				return Book{}, fmt.Errorf("searching by ID: %w", errBookNotFound)
 			}
 		default:
 			return Book{}, fmt.Errorf("searching by ID: %w", err)

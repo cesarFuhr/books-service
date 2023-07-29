@@ -64,7 +64,7 @@ func getBookById(w http.ResponseWriter, r *http.Request) {
 	//Searching for that ID on database:
 	returnedBook, err := searchById(id)
 	if err != nil {
-		if errors.Is(err, bookNotFound) {
+		if errors.Is(err, errBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
