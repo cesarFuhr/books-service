@@ -23,7 +23,7 @@ type Book struct {
 }
 
 var bookslist []Book
-var dbObject *sql.DB
+var dbObjectGlobal *sql.DB
 
 //==========HTTP COMMUNICATION FUNCTIONS:===========
 
@@ -145,7 +145,13 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unique := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	unique, err := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	if !unique {
 		responseJSON(w, http.StatusBadRequest, errResponseCreateBookNameConflict)
 		return
@@ -153,12 +159,18 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 	newBook.ID = uuid.New() //Atribute an ID to the entry
 
-	fail, storedBook := storeOnDB(newBook) //Store the book in the database
-	if fail {
+	storedBook, err := storeOnDB(newBook) //Store the book in the database
+	if err != nil {
+		if errors.Is(err, errBookNotFound) {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	responseJSON(w, http.StatusCreated, storedBook)
 }
 
@@ -178,11 +190,17 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	//connect to db:
-	dbObject = connectDb()
-	defer dbObject.Close()
+	dbObject, err := connectDb()
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+
+	dbObjectGlobal = dbObject
+	defer dbObjectGlobal.Close()
 
 	//apply migrations:
-	err := migrationUp()
+	err = migrationUp()
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
