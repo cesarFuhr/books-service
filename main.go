@@ -45,10 +45,9 @@ func bookById(w http.ResponseWriter, r *http.Request) {
 	if method == http.MethodGet {
 		getBookById(w, r)
 		return
-	} else {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
 	}
+
+	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
 /* Return the book with that specific ID. */
@@ -163,7 +162,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, errBookNotFound) {
 			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		log.Println(err)

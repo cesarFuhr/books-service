@@ -100,9 +100,7 @@ func storeOnDB(newBook Book) (Book, error) {
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			{
-				return Book{}, fmt.Errorf("storing on db: %w", errBookNotFound)
-			}
+			return Book{}, fmt.Errorf("storing on db: %w", errBookNotFound)
 		default:
 			return Book{}, fmt.Errorf("storing on db: %w", err)
 		}
