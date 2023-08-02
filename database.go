@@ -88,7 +88,7 @@ func searchById(id uuid.UUID) (Book, error) {
 
 /* Returns all the content of database in a list of books*/
 func listBooks() ([]Book, error) {
-	sqlStatement := `SELECT * FROM bookstable;`
+	sqlStatement := `SELECT * FROM bookstable ORDER BY name ASC;`
 	rows, err := dbObjectGlobal.Query(sqlStatement)
 	if err != nil {
 		return nil, fmt.Errorf("listing all books on db: %w", err)
