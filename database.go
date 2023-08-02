@@ -91,24 +91,23 @@ func listBooks() ([]Book, error) {
 	sqlStatement := `SELECT * FROM bookstable;`
 	rows, err := dbObjectGlobal.Query(sqlStatement)
 	if err != nil {
-		return []Book{}, fmt.Errorf("listing all books on db: %w", err)
+		return nil, fmt.Errorf("listing all books on db: %w", err)
 	}
+	defer rows.Close()
 	var bookslist []Book
 	var bookToReturn Book
 	for rows.Next() {
 		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
 		if err != nil {
-			rows.Close()
-			return []Book{}, fmt.Errorf("listing all books on db: %w", err)
+			return nil, fmt.Errorf("listing all books on db: %w", err)
 		}
 
 		bookslist = append(bookslist, bookToReturn)
 	}
 
-	rows.Close()
 	err = rows.Err()
 	if err != nil {
-		return []Book{}, fmt.Errorf("listing all books on db: %w", err)
+		return nil, fmt.Errorf("listing all books on db: %w", err)
 	}
 
 	return bookslist, nil
