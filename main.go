@@ -49,7 +49,7 @@ func bookById(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusMethodNotAllowed)
 }
 
-/* Return the book with that specific ID. */
+/* Returns the book with that specific ID. */
 func getBookById(w http.ResponseWriter, r *http.Request) {
 	//Isolating ID:
 	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
@@ -167,7 +167,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusCreated, storedBook)
 }
 
-/* Return a list of the stored books. */
+/* Returns a list of the stored books. */
 func getBooks(w http.ResponseWriter, r *http.Request) {
 	returnedBooks, err := listBooks()
 	if err != nil {

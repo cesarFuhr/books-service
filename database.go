@@ -68,7 +68,7 @@ func sameNameOnDB(newBook Book) (unique bool, unexpected error) {
 
 var errBookNotFound = errors.New("book not found")
 
-/* Search a book in database based on ID and returns it if succeed. */
+/* Searches a book in database based on ID and returns it if succeed. */
 func searchById(id uuid.UUID) (Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
 	foundRow := dbObjectGlobal.QueryRow(sqlStatement, id)
@@ -86,6 +86,7 @@ func searchById(id uuid.UUID) (Book, error) {
 	return bookToReturn, nil
 }
 
+/* Returns all the content of database in a list of books*/
 func listBooks() ([]Book, error) {
 	sqlStatement := `SELECT * FROM bookstable;`
 	rows, err := dbObjectGlobal.Query(sqlStatement)
