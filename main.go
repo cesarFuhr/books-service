@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
@@ -20,7 +23,7 @@ type Book struct {
 }
 
 var bookslist []Book
-var dbObject *sql.DB
+var dbObjectGlobal *sql.DB
 
 //==========HTTP COMMUNICATION FUNCTIONS:===========
 
@@ -34,6 +37,43 @@ func ping(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+}
+
+/* Handles a call to /books/(exected id here) and redirects depending on the requested action.  */
+func bookById(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	if method == http.MethodGet {
+		getBookById(w, r)
+		return
+	}
+
+	w.WriteHeader(http.StatusMethodNotAllowed)
+}
+
+/* Return the book with that specific ID. */
+func getBookById(w http.ResponseWriter, r *http.Request) {
+	//Isolating ID:
+	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
+	id, err := uuid.Parse(justId)
+	if err != nil {
+		log.Println(err)
+		responseJSON(w, http.StatusBadRequest, errResponseIdInvalidFormat)
+		return
+	}
+	//Searching for that ID on database:
+	returnedBook, err := searchById(id)
+	if err != nil {
+		if errors.Is(err, errBookNotFound) {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, returnedBook)
 }
 
 /* Handles a call to /books and redirects depending on the requested action.  */
@@ -104,7 +144,13 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unique := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	unique, err := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	if !unique {
 		responseJSON(w, http.StatusBadRequest, errResponseCreateBookNameConflict)
 		return
@@ -112,14 +158,14 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 	newBook.ID = uuid.New() //Atribute an ID to the entry
 
-	fail, storedBook := storeOnDB(newBook) //Store the book in the database
-	if fail {
+	storedBook, err := storeOnDB(newBook) //Store the book in the database
+	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	responseJSON(w, http.StatusCreated, storedBook)
-	return
 }
 
 //FIX IT CONSIDERING STORAGE ON DATABASE.
@@ -138,18 +184,26 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	//connect to db:
-	dbObject = connectDb()
-	defer dbObject.Close()
+	dbObject, err := connectDb()
+	if err != nil {
+		log.Println(err)
+		os.Exit(1)
+	}
+
+	dbObjectGlobal = dbObject
+	defer dbObjectGlobal.Close()
 
 	//apply migrations:
-	err := migrationUp()
+	err = migrationUp()
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		os.Exit(1)
 	}
 
 	//start http server:
 	http.HandleFunc("/ping", ping)
 	http.HandleFunc("/books", books)
+	http.HandleFunc("/books/", bookById)
 
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
