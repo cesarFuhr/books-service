@@ -68,7 +68,7 @@ func sameNameOnDB(newBook Book) (unique bool, unexpected error) {
 
 var errBookNotFound = errors.New("book not found")
 
-/* Search a book in database based on ID and returns it if succeed. */
+/* Searches a book in database based on ID and returns it if succeed. */
 func searchById(id uuid.UUID) (Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
 	foundRow := dbObjectGlobal.QueryRow(sqlStatement, id)
@@ -84,6 +84,33 @@ func searchById(id uuid.UUID) (Book, error) {
 	}
 
 	return bookToReturn, nil
+}
+
+/* Returns all the content of database in a list of books*/
+func listBooks() ([]Book, error) {
+	sqlStatement := `SELECT * FROM bookstable ORDER BY name ASC;`
+	rows, err := dbObjectGlobal.Query(sqlStatement)
+	if err != nil {
+		return nil, fmt.Errorf("listing all books on db: %w", err)
+	}
+	defer rows.Close()
+	var bookslist []Book
+	var bookToReturn Book
+	for rows.Next() {
+		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+		if err != nil {
+			return nil, fmt.Errorf("listing all books on db: %w", err)
+		}
+
+		bookslist = append(bookslist, bookToReturn)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("listing all books on db: %w", err)
+	}
+
+	return bookslist, nil
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
