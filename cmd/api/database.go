@@ -37,7 +37,7 @@ func migrationUp() error {
 	}
 
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		"file://../../migrations",
 		"postgres", driver)
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
