@@ -22,7 +22,6 @@ type Book struct {
 	Inventory *int      `json:"inventory"`
 }
 
-var bookslist []Book
 var dbObjectGlobal *sql.DB
 
 //==========HTTP COMMUNICATION FUNCTIONS:===========
@@ -168,18 +167,16 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusCreated, storedBook)
 }
 
-//FIX IT CONSIDERING STORAGE ON DATABASE.
 /* Return a list of the stored books. */
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	//Encoding in JSON to send through the Writer:
-	responsebody, err := json.Marshal(bookslist)
+	returnedBooks, err := listBooks()
 	if err != nil {
-		log.Println("error:", err)
+		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("content-type", "application/json")
-	w.Write([]byte(responsebody))
+
+	responseJSON(w, http.StatusOK, returnedBooks)
 }
 
 func main() {
