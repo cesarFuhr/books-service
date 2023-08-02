@@ -77,9 +77,7 @@ func searchById(id uuid.UUID) (Book, error) {
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			{
-				return Book{}, fmt.Errorf("searching by ID: %w", errBookNotFound)
-			}
+			return Book{}, fmt.Errorf("searching by ID: %w", errBookNotFound)
 		default:
 			return Book{}, fmt.Errorf("searching by ID: %w", err)
 		}

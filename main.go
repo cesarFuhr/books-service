@@ -160,11 +160,6 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 	storedBook, err := storeOnDB(newBook) //Store the book in the database
 	if err != nil {
-		if errors.Is(err, errBookNotFound) {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
