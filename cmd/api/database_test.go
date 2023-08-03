@@ -21,6 +21,7 @@ func TestMain(m *testing.M) {
 
 	dbObjectGlobal = db
 
+	os.Setenv("DATABASE_MIGRATIONS_PATH", "../../migrations")
 	err = migrationUp()
 	if err != nil {
 		log.Fatalln(err)
@@ -61,7 +62,7 @@ func TestGetBook(t *testing.T) {
 	t.Run("Gets a book by ID without errors", func(t *testing.T) {
 		is := is.New(t)
 
-		// Setting up the creating a book to be fetched.
+		// Setting up, creating a book to be fetched.
 		b := Book{
 			ID:        uuid.New(),
 			Name:      "A new book`",
@@ -82,6 +83,30 @@ func TestGetBook(t *testing.T) {
 		is := is.New(t)
 
 		// Write the Get Book test here.
+		// ...
+		is.Fail()
+	})
+}
+
+func TestListBooks(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
+
+	t.Run("List books without errors even if there is no books in the database", func(t *testing.T) {
+		is := is.New(t)
+
+		// Write the List Books test here.
+		// ...
+		is.Fail()
+	})
+
+	t.Run("List books without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		// Setting up, creating books to be listed.
+		// ...
+		// Write the List Books test here.
 		// ...
 		is.Fail()
 	})

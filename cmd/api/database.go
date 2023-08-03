@@ -36,8 +36,9 @@ func migrationUp() error {
 		return fmt.Errorf("migrating up: %w", err)
 	}
 
+	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
 	m, err := migrate.NewWithDatabaseInstance(
-		"file://../../migrations",
+		fmt.Sprintf("file://%s", path),
 		"postgres", driver)
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
