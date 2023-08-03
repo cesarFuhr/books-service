@@ -24,11 +24,21 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-    - name: Test Setup Up
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: "1.20"
+
+    - name: Test Env Up
       run: make test-env-up
 
     - name: Test Run
       run: make test
 
-    - name: Test Setup Down
+    - name: Test Env Down
       run: make test-env-down
