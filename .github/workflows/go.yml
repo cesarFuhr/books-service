@@ -24,5 +24,11 @@ jobs:
     - name: Build
       run: go build -v ./...
 
-      #- name: Test
-      #  run: go test -v ./...
+    - name: Test Setup Up
+      run: make test-env-up
+
+    - name: Test Run
+      run: make test
+
+    - name: Test Setup Down
+      run: make test-env-down

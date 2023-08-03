@@ -6,6 +6,9 @@ kill_timeout = 5
 mounts = []
 processes = []
 
+[env]
+  DATABASE_MIGRATION_PATH = "./migrations"
+
 [[services]]
   internal_port = 8080
   processes = ["app"]
