@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -75,16 +77,18 @@ func TestGetBook(t *testing.T) {
 		is.Equal(newBook, b)
 
 		// Write the Get Book test here.
-		// ...
-		is.Fail()
+		returnedBook, err := searchById(b.ID)
+		is.NoErr(err)
+		is.Equal(returnedBook, b)
 	})
 
 	t.Run("Gets an non existing book should return a not found error", func(t *testing.T) {
 		is := is.New(t)
 
 		// Write the Get Book test here.
-		// ...
-		is.Fail()
+		returnedBook, err := searchById(uuid.New())
+		is.True(errors.Is(err, errBookNotFound))
+		is.Equal(returnedBook, Book{})
 	})
 }
 
@@ -97,18 +101,36 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		// ...
-		is.Fail()
+		returnedBooks, err := listBooks()
+		is.NoErr(err)
+		is.Equal(returnedBooks, nil)
 	})
 
 	t.Run("List books without errors", func(t *testing.T) {
 		is := is.New(t)
 
 		// Setting up, creating books to be listed.
-		// ...
+		var bookslist []Book
+		listSize := 10 //WHY IT'S FAILLING WHIT VALUES BIGGER THAN 10???
+
+		for i := 0; i < listSize; i++ {
+			b := Book{
+				ID:        uuid.New(),
+				Name:      fmt.Sprintf("Book number %v", i),
+				Price:     toPointer(float32(40.0)),
+				Inventory: toPointer(10),
+			}
+
+			newBook, err := storeOnDB(b)
+			is.NoErr(err)
+			is.Equal(newBook, b)
+			bookslist = append(bookslist, b)
+		}
+
 		// Write the List Books test here.
-		// ...
-		is.Fail()
+		returnedBooks, err := listBooks()
+		is.NoErr(err)
+		is.Equal(returnedBooks, bookslist)
 	})
 }
 
