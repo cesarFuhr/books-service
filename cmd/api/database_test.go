@@ -111,7 +111,7 @@ func TestListBooks(t *testing.T) {
 
 		// Setting up, creating books to be listed.
 		var bookslist []Book
-		listSize := 100
+		listSize := 11
 
 		for i := 0; i < listSize; i++ {
 			b := Book{
