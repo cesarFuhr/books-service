@@ -95,7 +95,7 @@ func listBooks() ([]Book, error) {
 		return nil, fmt.Errorf("listing all books on db: %w", err)
 	}
 	defer rows.Close()
-	var bookslist []Book
+	var bookslist []Book = []Book{}
 	var bookToReturn Book
 	for rows.Next() {
 		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)

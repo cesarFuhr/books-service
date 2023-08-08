@@ -103,7 +103,7 @@ func TestListBooks(t *testing.T) {
 		// Write the List Books test here.
 		returnedBooks, err := listBooks()
 		is.NoErr(err)
-		is.Equal(returnedBooks, nil)
+		is.Equal(returnedBooks, []Book{})
 	})
 
 	t.Run("List books without errors", func(t *testing.T) {
@@ -111,12 +111,12 @@ func TestListBooks(t *testing.T) {
 
 		// Setting up, creating books to be listed.
 		var bookslist []Book
-		listSize := 10 //WHY IT'S FAILLING WHIT VALUES BIGGER THAN 10???
+		listSize := 100
 
 		for i := 0; i < listSize; i++ {
 			b := Book{
 				ID:        uuid.New(),
-				Name:      fmt.Sprintf("Book number %v", i),
+				Name:      fmt.Sprintf("Book number %06v", i),
 				Price:     toPointer(float32(40.0)),
 				Inventory: toPointer(10),
 			}
