@@ -88,11 +88,15 @@ func searchById(id uuid.UUID) (Book, error) {
 }
 
 /* Returns all the content of database in a list of books*/
-func listBooks() ([]Book, error) {
-	sqlStatement := `SELECT * FROM bookstable ORDER BY name ASC;`
-	rows, err := dbObjectGlobal.Query(sqlStatement)
+func listBooks(name string, minPrice32, maxPrice32 float32) ([]Book, error) {
+	sqlStatement :=
+		`SELECT * FROM bookstable 
+	WHERE name LIKE $1
+	AND price BETWEEN $2 AND $3	
+	ORDER BY name ASC;`
+	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32)
 	if err != nil {
-		return nil, fmt.Errorf("listing all books on db: %w", err)
+		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
 	defer rows.Close()
 	bookslist := []Book{}
@@ -100,7 +104,7 @@ func listBooks() ([]Book, error) {
 	for rows.Next() {
 		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
 		if err != nil {
-			return nil, fmt.Errorf("listing all books on db: %w", err)
+			return nil, fmt.Errorf("listing books from db: %w", err)
 		}
 
 		bookslist = append(bookslist, bookToReturn)
@@ -108,7 +112,7 @@ func listBooks() ([]Book, error) {
 
 	err = rows.Err()
 	if err != nil {
-		return nil, fmt.Errorf("listing all books on db: %w", err)
+		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
 
 	return bookslist, nil
