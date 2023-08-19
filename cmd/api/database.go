@@ -87,7 +87,7 @@ func searchById(id uuid.UUID) (Book, error) {
 	return bookToReturn, nil
 }
 
-/* Returns all the content of database in a list of books*/
+/* Returns filtered content of database in a list of books*/
 func listBooks(name string, minPrice32, maxPrice32 float32) ([]Book, error) {
 	if name == "" {
 		name = "%"

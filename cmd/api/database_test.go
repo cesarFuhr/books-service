@@ -141,7 +141,8 @@ func TestListBooks(t *testing.T) {
 		for i := 0; i < listSize; i++ {
 			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99)
 			is.NoErr(err)
-			is.Equal(returnedBook[i], testBookslist[i])
+			is.True(len(returnedBook) == 1)
+			is.Equal(returnedBook[0], testBookslist[i])
 		}
 	})
 }
