@@ -97,6 +97,7 @@ func TestListBooks(t *testing.T) {
 		teardownDB(t)
 	})
 
+	is := is.New(t)
 	var testBookslist []Book
 	listSize := 11
 
@@ -109,24 +110,23 @@ func TestListBooks(t *testing.T) {
 		is.Equal(returnedBooks, []Book{})
 	})
 
+	// Setting up, creating books to be listed.
+	for i := 0; i < listSize; i++ {
+		b := Book{
+			ID:        uuid.New(),
+			Name:      fmt.Sprintf("Book number %06v", i),
+			Price:     toPointer(float32((i * 100) + 1)),
+			Inventory: toPointer(i + 1),
+		}
+
+		newBook, err := storeOnDB(b)
+		is.NoErr(err)
+		is.Equal(newBook, b)
+		testBookslist = append(testBookslist, b)
+	}
+
 	t.Run("List all books, no filtering, without errors", func(t *testing.T) {
 		is := is.New(t)
-
-		// Setting up, creating books to be listed.
-
-		for i := 0; i < listSize; i++ {
-			b := Book{
-				ID:        uuid.New(),
-				Name:      fmt.Sprintf("Book number %06v", i),
-				Price:     toPointer(float32((i * 100) + 1)),
-				Inventory: toPointer(i + 1),
-			}
-
-			newBook, err := storeOnDB(b)
-			is.NoErr(err)
-			is.Equal(newBook, b)
-			testBookslist = append(testBookslist, b)
-		}
 
 		//Asking all books on the list
 		returnedBooks, err := listBooks("", 0.00, 9999.99)
@@ -152,7 +152,7 @@ func TestListBooks(t *testing.T) {
 		//Asking all books on the created list with price >= 501
 		returnedBooks, err := listBooks("", 501.00, 9999.99)
 		is.NoErr(err)
-		is.Equal(returnedBooks[:], testBookslist[5:11])
+		is.Equal(returnedBooks, testBookslist[5:11])
 	})
 
 	t.Run("List books without errors filtering by maximum price", func(t *testing.T) {
@@ -161,7 +161,7 @@ func TestListBooks(t *testing.T) {
 		//Asking all books on the created list with price <= 501
 		returnedBooks, err := listBooks("", 00.00, 501.00)
 		is.NoErr(err)
-		is.Equal(returnedBooks[:], testBookslist[0:6])
+		is.Equal(returnedBooks, testBookslist[0:6])
 	})
 }
 
