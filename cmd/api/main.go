@@ -174,6 +174,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	//DO WE NEED SOMETHING TO CHECK ERRORS IN THE URL HERE???
 
 	//Extract and adapt query params:
+	//FILTERING PARAMS:
 	query := r.URL.Query()
 
 	name := query.Get("name")
@@ -204,8 +205,28 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
 	}
 
+	//ORDERING PARAMS:
+	sortBy := query.Get("sort_by")
+	switch sortBy {
+	case "":
+		sortBy = "name"
+	case "name":
+		break
+	case "price":
+		break
+	case "inventory":
+		break
+	case "created_at":
+		break //IMPLEMENT THIS
+	case "updated_at":
+		break //IMPLEMENT THIS TOO
+	default:
+		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
+		return
+	}
+
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
