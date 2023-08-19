@@ -145,6 +145,24 @@ func TestListBooks(t *testing.T) {
 			is.Equal(returnedBook[0], testBookslist[i])
 		}
 	})
+
+	t.Run("List books without errors filtering by minimum price", func(t *testing.T) {
+		is := is.New(t)
+
+		//Asking all books on the created list with price >= 501
+		returnedBooks, err := listBooks("", 501.00, 9999.99)
+		is.NoErr(err)
+		is.Equal(returnedBooks[:], testBookslist[5:11])
+	})
+
+	t.Run("List books without errors filtering by maximum price", func(t *testing.T) {
+		is := is.New(t)
+
+		//Asking all books on the created list with price <= 501
+		returnedBooks, err := listBooks("", 00.00, 501.00)
+		is.NoErr(err)
+		is.Equal(returnedBooks[:], testBookslist[0:6])
+	})
 }
 
 func toPointer[T any](v T) *T {
