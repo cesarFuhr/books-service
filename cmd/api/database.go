@@ -89,6 +89,10 @@ func searchById(id uuid.UUID) (Book, error) {
 
 /* Returns all the content of database in a list of books*/
 func listBooks(name string, minPrice32, maxPrice32 float32) ([]Book, error) {
+	if name == "" {
+		name = "%"
+	}
+
 	sqlStatement :=
 		`SELECT * FROM bookstable 
 	WHERE name LIKE $1

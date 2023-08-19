@@ -171,26 +171,19 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 /* Returns a list of the stored books. */
 func getBooks(w http.ResponseWriter, r *http.Request) {
 
-	err := r.ParseForm() //Verify errors in request query params and populates r.Form with its values.
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	//DO WE NEED SOMETHING TO CHECK ERRORS IN THE URL HERE???
 
-	//Adapt query params:
-	name := r.FormValue("name")
-	if name == "" {
-		name = "%"
-	}
+	//Extract and adapt query params:
+	query := r.URL.Query()
+
+	name := query.Get("name")
 
 	var minPrice32 float32
-	minPriceStr := r.FormValue("min_price")
+	minPriceStr := query.Get("min_price")
 	if minPriceStr != "" {
 		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
 		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			responseJSON(w, http.StatusBadRequest, errResponseQueryPriceInvalidFormat)
 			return
 		}
 		minPrice32 = float32(minPrice64)
@@ -199,12 +192,11 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var maxPrice32 float32
-	maxPriceStr := r.FormValue("max_price")
+	maxPriceStr := query.Get("max_price")
 	if maxPriceStr != "" {
 		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
 		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			responseJSON(w, http.StatusBadRequest, errResponseQueryPriceInvalidFormat)
 			return
 		}
 		maxPrice32 = float32(maxPrice64)
