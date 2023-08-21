@@ -21,6 +21,8 @@ type Book struct {
 	Name      string    `json:"name"`
 	Price     *float32  `json:"price"`
 	Inventory *int      `json:"inventory"`
+	CreatedAt string    `json:"created_at"`
+	UpdatedAt string    `json:"updated_at"`
 }
 
 var dbObjectGlobal *sql.DB
@@ -217,9 +219,12 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	case "inventory":
 		break
 	case "created_at":
-		break //IMPLEMENT THIS
+		break
 	case "updated_at":
-		break //IMPLEMENT THIS TOO
+		break //IMPLEMENT THIS LATER, WHIT FUNCTION UPDATE BOOK
+		//https://x-team.com/blog/automatic-timestamps-with-postgresql/
+		//https://www.postgresqltutorial.com/postgresql-date-functions/postgresql-current_timestamp/
+		//https://www.postgresql.org/docs/15/sql-createtrigger.html
 	default:
 		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
 		return
