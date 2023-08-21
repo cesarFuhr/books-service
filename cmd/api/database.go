@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -75,7 +74,7 @@ func searchById(id uuid.UUID) (Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
 	foundRow := dbObjectGlobal.QueryRow(sqlStatement, id)
 	var bookToReturn Book
-	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -94,13 +93,11 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy string) ([]Bo
 		name = "%"
 	}
 
-	log.Println(sortBy) //DELETE THIS DEBUG CODE
-
-	sqlStatement :=
-		`SELECT * FROM bookstable 
+	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name LIKE $1
 	AND price BETWEEN $2 AND $3	
-	ORDER BY name ASC;`
+	ORDER BY `, sortBy, ` ASC;`)
+
 	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
@@ -109,7 +106,7 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy string) ([]Bo
 	bookslist := []Book{}
 	var bookToReturn Book
 	for rows.Next() {
-		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("listing books from db: %w", err)
 		}
@@ -133,7 +130,7 @@ func storeOnDB(newBook Book) (Book, error) {
 	RETURNING *`
 	createdRow := dbObjectGlobal.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
 	var bookToReturn Book
-	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
