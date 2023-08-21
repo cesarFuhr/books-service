@@ -105,7 +105,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		returnedBooks, err := listBooks("", 0.00, 9999.99)
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name")
 		is.NoErr(err)
 		is.Equal(returnedBooks, []Book{})
 	})
@@ -129,7 +129,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list
-		returnedBooks, err := listBooks("", 0.00, 9999.99)
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name")
 		is.NoErr(err)
 		is.Equal(returnedBooks, testBookslist)
 	})
@@ -139,7 +139,7 @@ func TestListBooks(t *testing.T) {
 
 		// Testing, by name, each book on the created list.
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99)
+			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name")
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			is.Equal(returnedBook[0], testBookslist[i])
@@ -150,7 +150,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price >= 501
-		returnedBooks, err := listBooks("", 501.00, 9999.99)
+		returnedBooks, err := listBooks("", 501.00, 9999.99, "name")
 		is.NoErr(err)
 		is.Equal(returnedBooks, testBookslist[5:11])
 	})
@@ -159,7 +159,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := listBooks("", 00.00, 501.00)
+		returnedBooks, err := listBooks("", 00.00, 501.00, "")
 		is.NoErr(err)
 		is.Equal(returnedBooks, testBookslist[0:6])
 	})

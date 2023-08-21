@@ -173,8 +173,6 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 /* Returns a list of the stored books. */
 func getBooks(w http.ResponseWriter, r *http.Request) {
 
-	//DO WE NEED SOMETHING TO CHECK ERRORS IN THE URL HERE???
-
 	//Extract and adapt query params:
 	//FILTERING PARAMS:
 	query := r.URL.Query()
