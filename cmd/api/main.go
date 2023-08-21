@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -169,7 +170,42 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 /* Returns a list of the stored books. */
 func getBooks(w http.ResponseWriter, r *http.Request) {
-	returnedBooks, err := listBooks()
+
+	//DO WE NEED SOMETHING TO CHECK ERRORS IN THE URL HERE???
+
+	//Extract and adapt query params:
+	query := r.URL.Query()
+
+	name := query.Get("name")
+
+	var minPrice32 float32
+	minPriceStr := query.Get("min_price")
+	if minPriceStr != "" {
+		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
+		if err != nil {
+			responseJSON(w, http.StatusBadRequest, errResponseQueryPriceInvalidFormat)
+			return
+		}
+		minPrice32 = float32(minPrice64)
+	} else {
+		minPrice32 = 0
+	}
+
+	var maxPrice32 float32
+	maxPriceStr := query.Get("max_price")
+	if maxPriceStr != "" {
+		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
+		if err != nil {
+			responseJSON(w, http.StatusBadRequest, errResponseQueryPriceInvalidFormat)
+			return
+		}
+		maxPrice32 = float32(maxPrice64)
+	} else {
+		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
+	}
+
+	//Ask filtered list to db:
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
