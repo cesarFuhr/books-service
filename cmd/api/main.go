@@ -6,9 +6,11 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
@@ -21,8 +23,8 @@ type Book struct {
 	Name      string    `json:"name"`
 	Price     *float32  `json:"price"`
 	Inventory *int      `json:"inventory"`
-	CreatedAt string    `json:"created_at"`
-	UpdatedAt string    `json:"updated_at"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
 }
 
 var dbObjectGlobal *sql.DB
@@ -160,6 +162,9 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 	newBook.ID = uuid.New() //Atribute an ID to the entry
 
+	newBook.CreatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
+	newBook.UpdatedAt = newBook.CreatedAt
+
 	storedBook, err := storeOnDB(newBook) //Store the book in the database
 	if err != nil {
 		log.Println(err)
@@ -205,8 +210,25 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
 	}
 
-	//ORDERING PARAMS:
-	sortBy := query.Get("sort_by")
+	sortBy, valid := extractOrderParmams(query)
+	if !valid {
+		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
+		return
+	}
+
+	//Ask filtered list to db:
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, returnedBooks)
+}
+
+func extractOrderParmams(query url.Values) (sortBy string, valid bool) {
+	sortBy = query.Get("sort_by")
 	switch sortBy {
 	case "":
 		sortBy = "name"
@@ -224,19 +246,10 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		//https://www.postgresqltutorial.com/postgresql-date-functions/postgresql-current_timestamp/
 		//https://www.postgresql.org/docs/15/sql-createtrigger.html
 	default:
-		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
-		return
+		return sortBy, false
 	}
 
-	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	responseJSON(w, http.StatusOK, returnedBooks)
+	return sortBy, true
 }
 
 func main() {

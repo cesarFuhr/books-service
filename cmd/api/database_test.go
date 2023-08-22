@@ -6,10 +6,13 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/matryer/is"
 )
+
+var location *time.Location
 
 // TestMain is called before all the tests run.
 // Usually is where we add logic to initialise resources.
@@ -28,6 +31,14 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	//I needed to set location this way because otherwise test was failling on is.Equal:
+	//....CreatedAt:time.Date(2023, time.August, 22, 13, 21, 32, 536000000, time.Location("Etc/UTC")) !=
+	//....CreatedAt:time.Date(2023, time.August, 22, 13, 21, 32, 536000000, time.UTC),
+	location, err = time.LoadLocation("Etc/UTC")
+	if err != nil {
+		log.Fatalln(err)
+	} //NOW TEST IS PASSING. SHOULD DO THIS WAY ON MAIN.GO TO?
 
 	os.Exit(m.Run())
 }
@@ -48,6 +59,8 @@ func TestCreateBook(t *testing.T) {
 			Name:      "A new book`",
 			Price:     toPointer(float32(40.0)),
 			Inventory: toPointer(10),
+			CreatedAt: time.Now().In(location).Round(time.Millisecond),
+			UpdatedAt: time.Now().In(location).Round(time.Millisecond),
 		}
 
 		newBook, err := storeOnDB(b)
@@ -70,6 +83,8 @@ func TestGetBook(t *testing.T) {
 			Name:      "A new book`",
 			Price:     toPointer(float32(40.0)),
 			Inventory: toPointer(10),
+			CreatedAt: time.Now().In(location).Round(time.Millisecond),
+			UpdatedAt: time.Now().In(location).Round(time.Millisecond),
 		}
 
 		newBook, err := storeOnDB(b)
@@ -117,6 +132,8 @@ func TestListBooks(t *testing.T) {
 			Name:      fmt.Sprintf("Book number %06v", i),
 			Price:     toPointer(float32((i * 100) + 1)),
 			Inventory: toPointer(i + 1),
+			CreatedAt: time.Now().In(location).Round(time.Millisecond),
+			UpdatedAt: time.Now().In(location).Round(time.Millisecond),
 		}
 
 		newBook, err := storeOnDB(b)
@@ -159,7 +176,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := listBooks("", 00.00, 501.00, "")
+		returnedBooks, err := listBooks("", 00.00, 501.00, "name")
 		is.NoErr(err)
 		is.Equal(returnedBooks, testBookslist[0:6])
 	})
