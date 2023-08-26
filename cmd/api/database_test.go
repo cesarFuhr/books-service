@@ -12,8 +12,6 @@ import (
 	"github.com/matryer/is"
 )
 
-var location *time.Location
-
 // TestMain is called before all the tests run.
 // Usually is where we add logic to initialise resources.
 func TestMain(m *testing.M) {
@@ -176,6 +174,18 @@ func TestListBooks(t *testing.T) {
 		is.NoErr(err)
 		for i, expected := range testBookslist[0:6] {
 			compareBooks(is, returnedBooks[i], expected)
+		}
+	})
+
+	t.Run("List all books without errors ordering by price", func(t *testing.T) {
+		is := is.New(t)
+
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price")
+		is.NoErr(err)
+		var lastPrice float32 = 0
+		for _, v := range returnedBooks {
+			is.True(*v.Price >= lastPrice)
+			lastPrice = *v.Price
 		}
 	})
 }
