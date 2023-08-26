@@ -110,7 +110,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name")
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc")
 		is.NoErr(err)
 		is.Equal(returnedBooks, []Book{})
 	})
@@ -136,7 +136,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name")
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc")
 		is.NoErr(err)
 		for i, expected := range testBookslist {
 			compareBooks(is, returnedBooks[i], expected)
@@ -148,7 +148,7 @@ func TestListBooks(t *testing.T) {
 
 		// Testing, by name, each book on the created list.
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name")
+			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc")
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
@@ -159,7 +159,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price >= 501
-		returnedBooks, err := listBooks("", 501.00, 9999.99, "name")
+		returnedBooks, err := listBooks("", 501.00, 9999.99, "name", "asc")
 		is.NoErr(err)
 		for i, expected := range testBookslist[5:11] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -170,21 +170,33 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := listBooks("", 00.00, 501.00, "name")
+		returnedBooks, err := listBooks("", 00.00, 501.00, "name", "asc")
 		is.NoErr(err)
 		for i, expected := range testBookslist[0:6] {
 			compareBooks(is, returnedBooks[i], expected)
 		}
 	})
 
-	t.Run("List all books without errors ordering by price", func(t *testing.T) {
+	t.Run("List all books without errors ordering by price, ascendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := listBooks("", 00.00, 9999.99, "price")
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "asc")
 		is.NoErr(err)
 		var lastPrice float32 = 0
 		for _, v := range returnedBooks {
 			is.True(*v.Price >= lastPrice)
+			lastPrice = *v.Price
+		}
+	})
+
+	t.Run("List all books without errors ordering by price, descendent direction", func(t *testing.T) {
+		is := is.New(t)
+
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "desc")
+		is.NoErr(err)
+		var lastPrice float32 = 9999.99
+		for _, v := range returnedBooks {
+			is.True(*v.Price <= lastPrice)
 			lastPrice = *v.Price
 		}
 	})

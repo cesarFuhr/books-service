@@ -88,7 +88,7 @@ func searchById(id uuid.UUID) (Book, error) {
 }
 
 /* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32, sortBy string) ([]Book, error) {
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string) ([]Book, error) {
 	if name == "" {
 		name = "%"
 	}
@@ -96,7 +96,7 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy string) ([]Bo
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name LIKE $1
 	AND price BETWEEN $2 AND $3	
-	ORDER BY `, sortBy, ` ASC;`)
+	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
 
 	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32)
 	if err != nil {

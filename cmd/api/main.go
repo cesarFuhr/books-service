@@ -210,14 +210,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
 	}
 
-	sortBy, valid := extractOrderParmams(query)
+	sortBy, sortDirection, valid := extractOrderParmams(query)
 	if !valid {
 		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
 		return
 	}
 
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -227,7 +227,19 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, returnedBooks)
 }
 
-func extractOrderParmams(query url.Values) (sortBy string, valid bool) {
+func extractOrderParmams(query url.Values) (sortBy string, sortDirection string, valid bool) {
+	sortDirection = query.Get("sort_direction")
+	switch sortDirection {
+	case "":
+		sortDirection = "asc"
+	case "asc":
+		break
+	case "desc":
+		break
+	default:
+		return sortBy, sortDirection, false
+	}
+
 	sortBy = query.Get("sort_by")
 	switch sortBy {
 	case "":
@@ -246,10 +258,10 @@ func extractOrderParmams(query url.Values) (sortBy string, valid bool) {
 		//https://www.postgresqltutorial.com/postgresql-date-functions/postgresql-current_timestamp/
 		//https://www.postgresql.org/docs/15/sql-createtrigger.html
 	default:
-		return sortBy, false
+		return sortBy, sortDirection, false
 	}
 
-	return sortBy, true
+	return sortBy, sortDirection, true
 }
 
 func main() {
