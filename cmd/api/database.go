@@ -92,9 +92,11 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 	if name == "" {
 		name = "%"
 	}
+	name = fmt.Sprint("%", name, "%")
+	fmt.Println(name)
 
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
-	WHERE name LIKE $1
+	WHERE name ILIKE $1
 	AND price BETWEEN $2 AND $3	
 	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
 

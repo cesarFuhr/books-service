@@ -143,7 +143,7 @@ func TestListBooks(t *testing.T) {
 		}
 	})
 
-	t.Run("List books without errors filtering by name", func(t *testing.T) {
+	t.Run("List books without errors filtering by exactly name", func(t *testing.T) {
 		is := is.New(t)
 
 		// Testing, by name, each book on the created list.
@@ -152,6 +152,25 @@ func TestListBooks(t *testing.T) {
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
+		}
+	})
+
+	t.Run("List books without errors filtering by partial name", func(t *testing.T) {
+		is := is.New(t)
+
+		// Testing the different part of each name
+		for i := 0; i < listSize; i++ {
+			returnedBook, err := listBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc")
+			is.NoErr(err)
+			is.True(len(returnedBook) == 1)
+			compareBooks(is, returnedBook[0], testBookslist[i])
+		}
+		//Testing the common part of all names on the list
+		returnedBooks, err := listBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc")
+		is.NoErr(err)
+		is.True(len(returnedBooks) == listSize)
+		for i, expected := range testBookslist {
+			compareBooks(is, returnedBooks[i], expected)
 		}
 	})
 
