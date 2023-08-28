@@ -14,5 +14,6 @@ services:
       POSTGRES_PASSWORD: root
       POSTGRES_USER: root
       POSTGRES_DB: booksdb
+      POSTGRES_TZ: utc
     ports: 
       - "5432:5432"

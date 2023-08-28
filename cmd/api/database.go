@@ -71,10 +71,10 @@ var errBookNotFound = errors.New("book not found")
 
 /* Searches a book in database based on ID and returns it if succeed. */
 func searchById(id uuid.UUID) (Book, error) {
-	sqlStatement := `SELECT id, name, price, inventory FROM bookstable WHERE id=$1;`
+	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at FROM bookstable WHERE id=$1;`
 	foundRow := dbObjectGlobal.QueryRow(sqlStatement, id)
 	var bookToReturn Book
-	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -88,16 +88,18 @@ func searchById(id uuid.UUID) (Book, error) {
 }
 
 /* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32) ([]Book, error) {
-	if name == "" {
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string) ([]Book, error) {
+	if name != "" {
+		name = fmt.Sprint("%", name, "%")
+	} else {
 		name = "%"
 	}
 
-	sqlStatement :=
-		`SELECT * FROM bookstable 
-	WHERE name LIKE $1
+	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
+	WHERE name ILIKE $1
 	AND price BETWEEN $2 AND $3	
-	ORDER BY name ASC;`
+	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
+
 	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
@@ -106,7 +108,7 @@ func listBooks(name string, minPrice32, maxPrice32 float32) ([]Book, error) {
 	bookslist := []Book{}
 	var bookToReturn Book
 	for rows.Next() {
-		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("listing books from db: %w", err)
 		}
@@ -125,12 +127,12 @@ func listBooks(name string, minPrice32, maxPrice32 float32) ([]Book, error) {
 /* Stores the book into the database, checks and returns it if succeed. */
 func storeOnDB(newBook Book) (Book, error) {
 	sqlStatement := `
-	INSERT INTO bookstable (id, name, price, inventory)
-	VALUES ($1, $2, $3, $4)
+	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING *`
-	createdRow := dbObjectGlobal.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory)
+	createdRow := dbObjectGlobal.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory, newBook.CreatedAt, newBook.UpdatedAt)
 	var bookToReturn Book
-	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory)
+	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:

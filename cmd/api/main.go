@@ -6,9 +6,11 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
@@ -21,6 +23,8 @@ type Book struct {
 	Name      string    `json:"name"`
 	Price     *float32  `json:"price"`
 	Inventory *int      `json:"inventory"`
+	CreatedAt time.Time `json:"-"`
+	UpdatedAt time.Time `json:"-"`
 }
 
 var dbObjectGlobal *sql.DB
@@ -158,6 +162,9 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 
 	newBook.ID = uuid.New() //Atribute an ID to the entry
 
+	newBook.CreatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
+	newBook.UpdatedAt = newBook.CreatedAt
+
 	storedBook, err := storeOnDB(newBook) //Store the book in the database
 	if err != nil {
 		log.Println(err)
@@ -171,9 +178,8 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 /* Returns a list of the stored books. */
 func getBooks(w http.ResponseWriter, r *http.Request) {
 
-	//DO WE NEED SOMETHING TO CHECK ERRORS IN THE URL HERE???
-
 	//Extract and adapt query params:
+	//FILTERING PARAMS:
 	query := r.URL.Query()
 
 	name := query.Get("name")
@@ -204,8 +210,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
 	}
 
+	sortBy, sortDirection, valid := extractOrderParams(query)
+	if !valid {
+		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
+		return
+	}
+
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -213,6 +225,43 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseJSON(w, http.StatusOK, returnedBooks)
+}
+
+func extractOrderParams(query url.Values) (sortBy string, sortDirection string, valid bool) {
+	sortDirection = query.Get("sort_direction")
+	switch sortDirection {
+	case "":
+		sortDirection = "asc"
+	case "asc":
+		break
+	case "desc":
+		break
+	default:
+		return sortBy, sortDirection, false
+	}
+
+	sortBy = query.Get("sort_by")
+	switch sortBy {
+	case "":
+		sortBy = "name"
+	case "name":
+		break
+	case "price":
+		break
+	case "inventory":
+		break
+	case "created_at":
+		break
+	case "updated_at":
+		break //IMPLEMENT THIS LATER, WHIT FUNCTION UPDATE BOOK
+		//https://x-team.com/blog/automatic-timestamps-with-postgresql/
+		//https://www.postgresqltutorial.com/postgresql-date-functions/postgresql-current_timestamp/
+		//https://www.postgresql.org/docs/15/sql-createtrigger.html
+	default:
+		return sortBy, sortDirection, false
+	}
+
+	return sortBy, sortDirection, true
 }
 
 func main() {

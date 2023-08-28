@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/matryer/is"
@@ -48,11 +49,13 @@ func TestCreateBook(t *testing.T) {
 			Name:      "A new book`",
 			Price:     toPointer(float32(40.0)),
 			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
 		newBook, err := storeOnDB(b)
 		is.NoErr(err)
-		is.Equal(newBook, b)
+		compareBooks(is, newBook, b)
 	})
 }
 
@@ -70,16 +73,18 @@ func TestGetBook(t *testing.T) {
 			Name:      "A new book`",
 			Price:     toPointer(float32(40.0)),
 			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
 		newBook, err := storeOnDB(b)
 		is.NoErr(err)
-		is.Equal(newBook, b)
+		compareBooks(is, newBook, b)
 
 		// Write the Get Book test here.
 		returnedBook, err := searchById(b.ID)
 		is.NoErr(err)
-		is.Equal(returnedBook, b)
+		compareBooks(is, returnedBook, b)
 	})
 
 	t.Run("Gets an non existing book should return a not found error", func(t *testing.T) {
@@ -88,7 +93,7 @@ func TestGetBook(t *testing.T) {
 		// Write the Get Book test here.
 		returnedBook, err := searchById(uuid.New())
 		is.True(errors.Is(err, errBookNotFound))
-		is.Equal(returnedBook, Book{})
+		compareBooks(is, returnedBook, Book{})
 	})
 }
 
@@ -105,7 +110,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		returnedBooks, err := listBooks("", 0.00, 9999.99)
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc")
 		is.NoErr(err)
 		is.Equal(returnedBooks, []Book{})
 	})
@@ -117,11 +122,13 @@ func TestListBooks(t *testing.T) {
 			Name:      fmt.Sprintf("Book number %06v", i),
 			Price:     toPointer(float32((i * 100) + 1)),
 			Inventory: toPointer(i + 1),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
 		newBook, err := storeOnDB(b)
 		is.NoErr(err)
-		is.Equal(newBook, b)
+		compareBooks(is, newBook, b)
 		testBookslist = append(testBookslist, b)
 	}
 
@@ -129,20 +136,41 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list
-		returnedBooks, err := listBooks("", 0.00, 9999.99)
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc")
 		is.NoErr(err)
-		is.Equal(returnedBooks, testBookslist)
+		for i, expected := range testBookslist {
+			compareBooks(is, returnedBooks[i], expected)
+		}
 	})
 
-	t.Run("List books without errors filtering by name", func(t *testing.T) {
+	t.Run("List books without errors filtering by exactly name", func(t *testing.T) {
 		is := is.New(t)
 
 		// Testing, by name, each book on the created list.
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99)
+			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc")
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
-			is.Equal(returnedBook[0], testBookslist[i])
+			compareBooks(is, returnedBook[0], testBookslist[i])
+		}
+	})
+
+	t.Run("List books without errors filtering by partial name", func(t *testing.T) {
+		is := is.New(t)
+
+		// Testing the different part of each name
+		for i := 0; i < listSize; i++ {
+			returnedBook, err := listBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc")
+			is.NoErr(err)
+			is.True(len(returnedBook) == 1)
+			compareBooks(is, returnedBook[0], testBookslist[i])
+		}
+		//Testing the common part of all names on the list
+		returnedBooks, err := listBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc")
+		is.NoErr(err)
+		is.True(len(returnedBooks) == listSize)
+		for i, expected := range testBookslist {
+			compareBooks(is, returnedBooks[i], expected)
 		}
 	})
 
@@ -150,19 +178,64 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price >= 501
-		returnedBooks, err := listBooks("", 501.00, 9999.99)
+		returnedBooks, err := listBooks("", 501.00, 9999.99, "name", "asc")
 		is.NoErr(err)
-		is.Equal(returnedBooks, testBookslist[5:11])
+		for i, expected := range testBookslist[5:11] {
+			compareBooks(is, returnedBooks[i], expected)
+		}
 	})
 
 	t.Run("List books without errors filtering by maximum price", func(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := listBooks("", 00.00, 501.00)
+		returnedBooks, err := listBooks("", 00.00, 501.00, "name", "asc")
 		is.NoErr(err)
-		is.Equal(returnedBooks, testBookslist[0:6])
+		for i, expected := range testBookslist[0:6] {
+			compareBooks(is, returnedBooks[i], expected)
+		}
 	})
+
+	t.Run("List all books without errors ordering by price, ascendent direction", func(t *testing.T) {
+		is := is.New(t)
+
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "asc")
+		is.NoErr(err)
+		var lastPrice float32 = 0
+		for _, v := range returnedBooks {
+			is.True(*v.Price >= lastPrice)
+			lastPrice = *v.Price
+		}
+	})
+
+	t.Run("List all books without errors ordering by price, descendent direction", func(t *testing.T) {
+		is := is.New(t)
+
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "desc")
+		is.NoErr(err)
+		var lastPrice float32 = 9999.99
+		for _, v := range returnedBooks {
+			is.True(*v.Price <= lastPrice)
+			lastPrice = *v.Price
+		}
+	})
+}
+
+// compareBooks asserts that two books are equal,
+// handling time.Time values correctly.
+func compareBooks(is *is.I, a, b Book) {
+	is.Helper()
+
+	// Make sure we have the correct timestamps.
+	is.True(a.CreatedAt.Equal(b.CreatedAt))
+	is.True(a.UpdatedAt.Equal(b.UpdatedAt))
+
+	// Overwrite to be able to compare them.
+	b.CreatedAt = a.CreatedAt
+	b.UpdatedAt = a.UpdatedAt
+
+	// Assert that they are equal.
+	is.Equal(a, b)
 }
 
 func toPointer[T any](v T) *T {
