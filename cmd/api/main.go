@@ -210,7 +210,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
 	}
 
-	sortBy, sortDirection, valid := extractOrderParmams(query)
+	sortBy, sortDirection, valid := extractOrderParams(query)
 	if !valid {
 		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
 		return
@@ -227,7 +227,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, returnedBooks)
 }
 
-func extractOrderParmams(query url.Values) (sortBy string, sortDirection string, valid bool) {
+func extractOrderParams(query url.Values) (sortBy string, sortDirection string, valid bool) {
 	sortDirection = query.Get("sort_direction")
 	switch sortDirection {
 	case "":

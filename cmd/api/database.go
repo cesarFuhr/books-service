@@ -89,11 +89,11 @@ func searchById(id uuid.UUID) (Book, error) {
 
 /* Returns filtered content of database in a list of books*/
 func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string) ([]Book, error) {
-	if name == "" {
+	if name != "" {
+		name = fmt.Sprint("%", name, "%")
+	} else {
 		name = "%"
 	}
-	name = fmt.Sprint("%", name, "%")
-	fmt.Println(name)
 
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1
