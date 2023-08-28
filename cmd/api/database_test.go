@@ -59,6 +59,40 @@ func TestCreateBook(t *testing.T) {
 	})
 }
 
+func TestUpdateBook(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
+
+	t.Run("updates a book without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		// Setting up, creating a book to be fetched.
+		b := Book{
+			ID:        uuid.New(),
+			Name:      "A new book to be updated",
+			Price:     toPointer(float32(40.0)),
+			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+		}
+
+		newBook, err := storeOnDB(b)
+		is.NoErr(err)
+		compareBooks(is, newBook, b)
+
+		//Updating the created book.
+		b.Name = "The book is now updated"
+		b.Price = toPointer(float32(50.0))
+		b.Inventory = toPointer(9)
+		b.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
+
+		updatedBook, err := updateOnDB(b)
+		is.NoErr(err)
+		compareBooks(is, updatedBook, b)
+	})
+}
+
 func TestGetBook(t *testing.T) {
 	t.Cleanup(func() {
 		teardownDB(t)
