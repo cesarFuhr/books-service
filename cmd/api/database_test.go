@@ -126,7 +126,7 @@ func TestGetBook(t *testing.T) {
 
 		// Write the Get Book test here.
 		returnedBook, err := searchById(uuid.New())
-		is.True(errors.Is(err, errBookNotFound))
+		is.True(errors.Is(err, errResponseBookNotFound))
 		compareBooks(is, returnedBook, Book{})
 	})
 }
