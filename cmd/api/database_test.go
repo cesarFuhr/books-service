@@ -91,6 +91,23 @@ func TestUpdateBook(t *testing.T) {
 		is.NoErr(err)
 		compareBooks(is, updatedBook, b)
 	})
+
+	t.Run("Updates an non existing book should return a not found error", func(t *testing.T) {
+		is := is.New(t)
+
+		nonexistentBook := Book{
+			ID:        uuid.New(),
+			Name:      "A new book that will not be stored",
+			Price:     toPointer(float32(40.0)),
+			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+		}
+
+		returnedBook, err := updateOnDB(nonexistentBook)
+		is.True(errors.Is(err, errResponseBookNotFound))
+		compareBooks(is, returnedBook, Book{})
+	})
 }
 
 func TestGetBook(t *testing.T) {
