@@ -1,0 +1,1 @@
+ALTER TABLE public.bookstable DROP CONSTRAINT bookstable_name_key;
