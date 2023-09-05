@@ -115,12 +115,7 @@ func storeOnDB(bookEntry Book) (Book, error) {
 	var bookToReturn Book
 	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			return Book{}, fmt.Errorf("storing on db: %w", errResponseBookNotFound)
-		default:
-			return Book{}, fmt.Errorf("storing on db: %w", err)
-		}
+		return Book{}, fmt.Errorf("storing on db: %w", err)
 	}
 
 	return bookToReturn, nil

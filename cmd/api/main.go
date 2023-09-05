@@ -155,9 +155,9 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fillErr := filledFields(bookEntry) //Verify if all entry fields are filled.
-	if fillErr != nil {
-		responseJSON(w, http.StatusBadRequest, fillErr)
+	err = filledFields(bookEntry) //Verify if all entry fields are filled.
+	if err != nil {
+		responseJSON(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -179,7 +179,7 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, updatedBook)
 }
 
-/* Stores the entry as a new book in the database, if there isn't one with the same name yet. */
+/* Stores the entry as a new book in the database. */
 func createBook(w http.ResponseWriter, r *http.Request) {
 	var bookEntry Book
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
@@ -193,9 +193,9 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fillErr := filledFields(bookEntry) //Verify if all entry fields are filled.
-	if fillErr != nil {
-		responseJSON(w, http.StatusBadRequest, fillErr)
+	err = filledFields(bookEntry) //Verify if all entry fields are filled.
+	if err != nil {
+		responseJSON(w, http.StatusBadRequest, err)
 		return
 	}
 
