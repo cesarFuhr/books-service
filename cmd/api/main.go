@@ -46,28 +46,41 @@ func ping(w http.ResponseWriter, r *http.Request) {
 /* Handles a call to /books/(exected id here) and redirects depending on the requested action.  */
 func bookById(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
-	if method == http.MethodGet {
+	switch method {
+	case http.MethodGet:
 		getBookById(w, r)
 		return
+	case http.MethodPut:
+		updateBook(w, r)
+		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
+}
 
-	w.WriteHeader(http.StatusMethodNotAllowed)
+/* Isolates the ID from the URL. */
+func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error) {
+	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
+	id, err = uuid.Parse(justId)
+	if err != nil {
+		log.Println(err)
+		responseJSON(w, http.StatusBadRequest, errResponseIdInvalidFormat)
+		return id, err
+	}
+	return id, nil
 }
 
 /* Returns the book with that specific ID. */
 func getBookById(w http.ResponseWriter, r *http.Request) {
-	//Isolating ID:
-	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
-	id, err := uuid.Parse(justId)
+	id, err := isolateId(w, r)
 	if err != nil {
-		log.Println(err)
-		responseJSON(w, http.StatusBadRequest, errResponseIdInvalidFormat)
 		return
 	}
 	//Searching for that ID on database:
 	returnedBook, err := searchById(id)
 	if err != nil {
-		if errors.Is(err, errBookNotFound) {
+		if errors.Is(err, errResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -97,22 +110,18 @@ func books(w http.ResponseWriter, r *http.Request) {
 }
 
 /* Verifies if all entry fields are filled and returns a warning message if so. */
-func filledFields(newBook Book) bool {
-	var filled bool
-	if newBook.Name == "" {
-		filled = false
-		return filled
+func filledFields(bookEntry Book) error {
+	if bookEntry.Name == "" {
+		return errResponseBookEntryBlankFileds
 	}
-	if newBook.Price == nil {
-		filled = false
-		return filled
+	if bookEntry.Price == nil {
+		return errResponseBookEntryBlankFileds
 	}
-	if newBook.Inventory == nil {
-		filled = false
-		return filled
+	if bookEntry.Inventory == nil {
+		return errResponseBookEntryBlankFileds
 	}
-	filled = true
-	return filled
+
+	return nil
 }
 
 /*Writes a JSON response into a http.ResponseWriter. */
@@ -127,45 +136,75 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
-/* Stores the entry as a new book in the database, if there isn't one with the same name yet. */
-func createBook(w http.ResponseWriter, r *http.Request) {
+/* Verifies with all fields are correctly filled and update the book in the db. */
+func updateBook(w http.ResponseWriter, r *http.Request) {
+	id, err := isolateId(w, r)
+	if err != nil {
+		return
+	}
 
-	var newBook Book
-	err := json.NewDecoder(r.Body).Decode(&newBook) //Read the Json body and save the entry to newBook
+	var bookEntry Book
+	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
 		errR := errResponse{
-			Code:    errResponseCreateBookInvalidJSON.Code,
-			Message: errResponseCreateBookInvalidJSON.Message + err.Error(),
+			Code:    errResponseBookEntryInvalidJSON.Code,
+			Message: errResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
-	filled := filledFields(newBook) //Verify if all entry fields are filled.
-	if !filled {
-		responseJSON(w, http.StatusBadRequest, errResponseCreateBookBlankFileds)
+	err = filledFields(bookEntry) //Verify if all entry fields are filled.
+	if err != nil {
+		responseJSON(w, http.StatusBadRequest, err)
 		return
 	}
 
-	unique, err := sameNameOnDB(newBook) //Verify if the already there is a book with the same name in the database
+	bookEntry.ID = id
+	bookEntry.UpdatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute a new updating time to the new entry.
+
+	updatedBook, err := updateOnDB(bookEntry) //Update the book in the database
 	if err != nil {
+		if errors.Is(err, errResponseBookNotFound) {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	if !unique {
-		responseJSON(w, http.StatusBadRequest, errResponseCreateBookNameConflict)
+	responseJSON(w, http.StatusOK, updatedBook)
+}
+
+/* Stores the entry as a new book in the database. */
+func createBook(w http.ResponseWriter, r *http.Request) {
+	var bookEntry Book
+	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
+	if err != nil {
+		log.Println(err)
+		errR := errResponse{
+			Code:    errResponseBookEntryInvalidJSON.Code,
+			Message: errResponseBookEntryInvalidJSON.Message + err.Error(),
+		}
+		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
-	newBook.ID = uuid.New() //Atribute an ID to the entry
+	err = filledFields(bookEntry) //Verify if all entry fields are filled.
+	if err != nil {
+		responseJSON(w, http.StatusBadRequest, err)
+		return
+	}
 
-	newBook.CreatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
-	newBook.UpdatedAt = newBook.CreatedAt
+	bookEntry.ID = uuid.New() //Atribute an ID to the entry
 
-	storedBook, err := storeOnDB(newBook) //Store the book in the database
+	bookEntry.CreatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
+	bookEntry.UpdatedAt = bookEntry.CreatedAt
+
+	storedBook, err := storeOnDB(bookEntry) //Store the book in the database
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)

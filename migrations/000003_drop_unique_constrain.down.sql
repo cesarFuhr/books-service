@@ -1,0 +1,1 @@
+ALTER TABLE public.bookstable ADD CONSTRAINT bookstable_name_key UNIQUE (name);

@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"os"
 
@@ -51,24 +50,6 @@ func migrationUp() error {
 	return nil
 }
 
-/* Verifies if there is already a book with the name of "newBook" in the database. If yes, returns it. */
-func sameNameOnDB(newBook Book) (unique bool, unexpected error) {
-	sqlStatement := `SELECT true FROM bookstable WHERE name=$1;`
-	foundRow := dbObjectGlobal.QueryRow(sqlStatement, newBook.Name)
-	var bookAlreadyExists bool
-	err := foundRow.Scan(&bookAlreadyExists)
-	switch err {
-	case sql.ErrNoRows:
-		return true, nil
-	case nil:
-		return false, nil
-	default:
-		return false, fmt.Errorf("verifying same name on db: %w", err)
-	}
-}
-
-var errBookNotFound = errors.New("book not found")
-
 /* Searches a book in database based on ID and returns it if succeed. */
 func searchById(id uuid.UUID) (Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at FROM bookstable WHERE id=$1;`
@@ -78,7 +59,7 @@ func searchById(id uuid.UUID) (Book, error) {
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return Book{}, fmt.Errorf("searching by ID: %w", errBookNotFound)
+			return Book{}, fmt.Errorf("searching by ID: %w", errResponseBookNotFound)
 		default:
 			return Book{}, fmt.Errorf("searching by ID: %w", err)
 		}
@@ -125,20 +106,37 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
-func storeOnDB(newBook Book) (Book, error) {
+func storeOnDB(bookEntry Book) (Book, error) {
 	sqlStatement := `
 	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING *`
-	createdRow := dbObjectGlobal.QueryRow(sqlStatement, newBook.ID, newBook.Name, *newBook.Price, *newBook.Inventory, newBook.CreatedAt, newBook.UpdatedAt)
+	createdRow := dbObjectGlobal.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
 	var bookToReturn Book
 	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
 	if err != nil {
+		return Book{}, fmt.Errorf("storing on db: %w", err)
+	}
+
+	return bookToReturn, nil
+}
+
+/* Stores the book into the database, checks and returns it if succeed. */
+func updateOnDB(bookEntry Book) (Book, error) {
+	sqlStatement := `
+	UPDATE bookstable 
+	SET name = $2, price = $3, inventory = $4, updated_at = $5
+	WHERE id = $1
+	RETURNING *`
+	updatedRow := dbObjectGlobal.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
+	var bookToReturn Book
+	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
+	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return Book{}, fmt.Errorf("storing on db: %w", errBookNotFound)
+			return Book{}, fmt.Errorf("updating on db: %w", errResponseBookNotFound)
 		default:
-			return Book{}, fmt.Errorf("storing on db: %w", err)
+			return Book{}, fmt.Errorf("updating on db: %w", err)
 		}
 	}
 
