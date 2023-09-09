@@ -281,8 +281,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	archived := false
+	archivedStr := query.Get("archived")
+	if archivedStr == "true" {
+		archived = true
+	}
+
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)

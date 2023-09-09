@@ -69,7 +69,7 @@ func searchById(id uuid.UUID) (Book, error) {
 }
 
 /* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string) ([]Book, error) {
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool) ([]Book, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
@@ -78,10 +78,11 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1
+	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3	
 	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
 
-	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32)
+	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
