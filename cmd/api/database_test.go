@@ -58,7 +58,57 @@ func TestCreateBook(t *testing.T) {
 		compareBooks(is, newBook, b)
 	})
 }
+func TestArchiveStatusBook(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
 
+	t.Run("archives a book without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		// Setting up, creating a book to be fetched.
+		b := Book{
+			ID:        uuid.New(),
+			Name:      "A new book to be archived",
+			Price:     toPointer(float32(40.0)),
+			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			Archived:  false,
+		}
+
+		newBook, err := storeOnDB(b)
+		is.NoErr(err)
+		compareBooks(is, newBook, b)
+
+		//Changing the status of 'arquived' field of local book to be compare afterwards.
+		b.Archived = true
+
+		//Archiving the created book.
+		archivedBook, err := archiveStatusOnDB(b.ID, true)
+		is.NoErr(err)
+		compareBooks(is, archivedBook, b)
+	})
+
+	t.Run("archives an non existing book should return a not found error", func(t *testing.T) {
+		is := is.New(t)
+
+		nonexistentBook := Book{
+			ID:        uuid.New(),
+			Name:      "A new book that will not be archived",
+			Price:     toPointer(float32(40.0)),
+			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			Archived:  false,
+		}
+
+		archivedBook, err := archiveStatusOnDB(nonexistentBook.ID, true)
+		is.True(errors.Is(err, errResponseBookNotFound))
+		compareBooks(is, archivedBook, Book{})
+	})
+
+}
 func TestUpdateBook(t *testing.T) {
 	t.Cleanup(func() {
 		teardownDB(t)
