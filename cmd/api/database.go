@@ -29,6 +29,8 @@ func connectDb() (*sql.DB, error) {
 	return db, nil
 }
 
+var mGlobal *migrate.Migrate
+
 func migrationUp() error {
 	driver, err := postgres.WithInstance(dbObjectGlobal, &postgres.Config{})
 	if err != nil {
@@ -42,6 +44,7 @@ func migrationUp() error {
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}
+	mGlobal = m
 
 	m.Up()
 	if err != nil {
