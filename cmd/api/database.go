@@ -46,7 +46,7 @@ func migrationUp() error {
 	}
 	mGlobal = m
 
-	m.Up()
+	err = m.Up()
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}

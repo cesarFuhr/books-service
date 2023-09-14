@@ -350,6 +350,10 @@ func TestListBooks(t *testing.T) {
 
 func TestDownMigrations(t *testing.T) {
 	is := is.New(t)
+	t.Cleanup(func() {
+		is.NoErr(mGlobal.Up())
+	})
+
 	err := mGlobal.Down()
 	is.NoErr(err)
 	sqlStatement := `SELECT EXISTS (
