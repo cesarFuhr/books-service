@@ -287,7 +287,7 @@ func TestDownMigrations(t *testing.T) {
 	var tableExists bool
 	err = check.Scan(&tableExists)
 	is.NoErr(err)
-	is.True(tableExists == false)
+	is.True(!tableExists)
 }
 
 // compareBooks asserts that two books are equal,
