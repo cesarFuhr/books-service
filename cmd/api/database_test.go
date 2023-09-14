@@ -370,28 +370,6 @@ func TestDownMigrations(t *testing.T) {
 	is.True(!tableExists)
 }
 
-func TestDownMigrations(t *testing.T) {
-	is := is.New(t)
-	t.Cleanup(func() {
-		is.NoErr(mGlobal.Up())
-	})
-
-	err := mGlobal.Down()
-	is.NoErr(err)
-	sqlStatement := `SELECT EXISTS (
-		SELECT FROM 
-			pg_tables
-		WHERE 
-			schemaname = 'public' AND 
-			tablename  = 'bookstable'
-		);`
-	check := dbObjectGlobal.QueryRow(sqlStatement)
-	var tableExists bool
-	err = check.Scan(&tableExists)
-	is.NoErr(err)
-	is.True(!tableExists)
-}
-
 // compareBooks asserts that two books are equal,
 // handling time.Time values correctly.
 func compareBooks(is *is.I, a, b Book) {
