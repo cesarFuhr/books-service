@@ -1,2 +1,2 @@
 ALTER TABLE public.bookstable
-  ADD COLUMN IF NOT EXISTS archived boolean DEFAULT false;
+  ADD COLUMN IF NOT EXISTS archived BOOLEAN DEFAULT false;

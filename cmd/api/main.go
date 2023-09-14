@@ -140,13 +140,14 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
-/* Set 'true' to column 'archived' in the database */
+/* Change the status of a book to "archived". */
 func archiveStatusBook(w http.ResponseWriter, r *http.Request) {
 	id, err := isolateId(w, r)
 	if err != nil {
 		return
 	}
-	archived := true //THIS FUNCTION IS READY TO BE IMPROVED TO ALLOW RESTORING BOOKS FROM ARCHIVE. JUST FIX THE ROUTING!
+	archived := true
+
 	archivedBook, err := archiveStatusOnDB(id, archived)
 	if err != nil {
 		if errors.Is(err, errResponseBookNotFound) {

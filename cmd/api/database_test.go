@@ -81,12 +81,13 @@ func TestArchiveStatusBook(t *testing.T) {
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
-		//Changing the status of 'arquived' field of local book to be compare afterwards.
-		b.Archived = true
-
 		//Archiving the created book.
 		archivedBook, err := archiveStatusOnDB(b.ID, true)
 		is.NoErr(err)
+
+		//Changing the status of 'arquived' field of local book to be compare afterwards.
+		b.Archived = true
+
 		compareBooks(is, archivedBook, b)
 	})
 
@@ -338,7 +339,7 @@ func TestListBooks(t *testing.T) {
 		}
 	})
 
-	t.Run("List an archived book should return an empty array of books, no errors.", func(t *testing.T) {
+	t.Run("Filtering a list by an archived book name returns an empty list, no errors.", func(t *testing.T) {
 		is := is.New(t)
 		//Book number 000000 was archived on last test.
 		returnedBook, err := listBooks("Book number 000000", 0.00, 9999.99, "name", "asc", false)
