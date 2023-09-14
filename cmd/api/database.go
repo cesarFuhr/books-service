@@ -52,10 +52,10 @@ func migrationUp() error {
 
 /* Searches a book in database based on ID and returns it if succeed. */
 func searchById(id uuid.UUID) (Book, error) {
-	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at FROM bookstable WHERE id=$1;`
+	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
 	foundRow := dbObjectGlobal.QueryRow(sqlStatement, id)
 	var bookToReturn Book
-	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -69,7 +69,7 @@ func searchById(id uuid.UUID) (Book, error) {
 }
 
 /* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string) ([]Book, error) {
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool) ([]Book, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
@@ -78,10 +78,11 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1
+	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3	
 	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
 
-	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32)
+	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
@@ -89,7 +90,7 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 	bookslist := []Book{}
 	var bookToReturn Book
 	for rows.Next() {
-		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
+		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 		if err != nil {
 			return nil, fmt.Errorf("listing books from db: %w", err)
 		}
@@ -113,7 +114,7 @@ func storeOnDB(bookEntry Book) (Book, error) {
 	RETURNING *`
 	createdRow := dbObjectGlobal.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
 	var bookToReturn Book
-	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
+	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
 		return Book{}, fmt.Errorf("storing on db: %w", err)
 	}
@@ -130,13 +131,35 @@ func updateOnDB(bookEntry Book) (Book, error) {
 	RETURNING *`
 	updatedRow := dbObjectGlobal.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
 	var bookToReturn Book
-	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt)
+	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
 			return Book{}, fmt.Errorf("updating on db: %w", errResponseBookNotFound)
 		default:
 			return Book{}, fmt.Errorf("updating on db: %w", err)
+		}
+	}
+
+	return bookToReturn, nil
+}
+
+/* Change the status of 'archived' column on database. */
+func archiveStatusOnDB(id uuid.UUID, archived bool) (Book, error) {
+	sqlStatement := `
+	UPDATE bookstable 
+	SET archived = $2
+	WHERE id = $1
+	RETURNING *`
+	updatedRow := dbObjectGlobal.QueryRow(sqlStatement, id, archived)
+	var bookToReturn Book
+	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return Book{}, fmt.Errorf("archiving on db: %w", errResponseBookNotFound)
+		default:
+			return Book{}, fmt.Errorf("archiving on db: %w", err)
 		}
 	}
 

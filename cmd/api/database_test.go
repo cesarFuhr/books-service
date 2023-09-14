@@ -58,7 +58,58 @@ func TestCreateBook(t *testing.T) {
 		compareBooks(is, newBook, b)
 	})
 }
+func TestArchiveStatusBook(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
 
+	t.Run("archives a book without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		// Setting up, creating a book to be fetched.
+		b := Book{
+			ID:        uuid.New(),
+			Name:      "A new book to be archived",
+			Price:     toPointer(float32(40.0)),
+			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			Archived:  false,
+		}
+
+		newBook, err := storeOnDB(b)
+		is.NoErr(err)
+		compareBooks(is, newBook, b)
+
+		//Archiving the created book.
+		archivedBook, err := archiveStatusOnDB(b.ID, true)
+		is.NoErr(err)
+
+		//Changing the status of 'arquived' field of local book to be compare afterwards.
+		b.Archived = true
+
+		compareBooks(is, archivedBook, b)
+	})
+
+	t.Run("archives an non existing book should return a not found error", func(t *testing.T) {
+		is := is.New(t)
+
+		nonexistentBook := Book{
+			ID:        uuid.New(),
+			Name:      "A new book that will not be archived",
+			Price:     toPointer(float32(40.0)),
+			Inventory: toPointer(10),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			Archived:  false,
+		}
+
+		archivedBook, err := archiveStatusOnDB(nonexistentBook.ID, true)
+		is.True(errors.Is(err, errResponseBookNotFound))
+		compareBooks(is, archivedBook, Book{})
+	})
+
+}
 func TestUpdateBook(t *testing.T) {
 	t.Cleanup(func() {
 		teardownDB(t)
@@ -161,7 +212,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc")
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
 		is.Equal(returnedBooks, []Book{})
 	})
@@ -187,7 +238,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc")
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
 		for i, expected := range testBookslist {
 			compareBooks(is, returnedBooks[i], expected)
@@ -199,7 +250,7 @@ func TestListBooks(t *testing.T) {
 
 		// Testing, by name, each book on the created list.
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc")
+			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc", true)
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
@@ -211,13 +262,13 @@ func TestListBooks(t *testing.T) {
 
 		// Testing the different part of each name
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc")
+			returnedBook, err := listBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc", true)
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
 		}
 		//Testing the common part of all names on the list
-		returnedBooks, err := listBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc")
+		returnedBooks, err := listBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
 		is.True(len(returnedBooks) == listSize)
 		for i, expected := range testBookslist {
@@ -229,7 +280,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price >= 501
-		returnedBooks, err := listBooks("", 501.00, 9999.99, "name", "asc")
+		returnedBooks, err := listBooks("", 501.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
 		for i, expected := range testBookslist[5:11] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -240,7 +291,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := listBooks("", 00.00, 501.00, "name", "asc")
+		returnedBooks, err := listBooks("", 00.00, 501.00, "name", "asc", true)
 		is.NoErr(err)
 		for i, expected := range testBookslist[0:6] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -250,7 +301,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("List all books without errors ordering by price, ascendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "asc")
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "asc", true)
 		is.NoErr(err)
 		var lastPrice float32 = 0
 		for _, v := range returnedBooks {
@@ -262,13 +313,38 @@ func TestListBooks(t *testing.T) {
 	t.Run("List all books without errors ordering by price, descendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "desc")
+		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "desc", true)
 		is.NoErr(err)
 		var lastPrice float32 = 9999.99
 		for _, v := range returnedBooks {
 			is.True(*v.Price <= lastPrice)
 			lastPrice = *v.Price
 		}
+	})
+
+	t.Run("List not archived books without errors", func(t *testing.T) {
+		is := is.New(t)
+		//Archiving one book of the list
+		archivedBook, err := archiveStatusOnDB(testBookslist[0].ID, true)
+		is.NoErr(err)
+		is.True(archivedBook.Archived == true)
+
+		// Testing if the returned list has one book less and if all of the returned books are 'false' for 'archived'
+		returnedBook, err := listBooks("", 0.00, 9999.99, "name", "asc", false)
+		is.NoErr(err)
+		is.True(len(returnedBook) == (listSize - 1))
+
+		for i := 0; i < (listSize - 1); i++ {
+			is.True(returnedBook[i].Archived == false)
+		}
+	})
+
+	t.Run("Filtering a list by an archived book name returns an empty list, no errors.", func(t *testing.T) {
+		is := is.New(t)
+		//Book number 000000 was archived on last test.
+		returnedBook, err := listBooks("Book number 000000", 0.00, 9999.99, "name", "asc", false)
+		is.NoErr(err)
+		is.True(len(returnedBook) == 0)
 	})
 }
 

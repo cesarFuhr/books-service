@@ -25,6 +25,7 @@ type Book struct {
 	Inventory *int      `json:"inventory"`
 	CreatedAt time.Time `json:"-"`
 	UpdatedAt time.Time `json:"-"`
+	Archived  bool      `json:"archived"`
 }
 
 var dbObjectGlobal *sql.DB
@@ -52,6 +53,9 @@ func bookById(w http.ResponseWriter, r *http.Request) {
 		return
 	case http.MethodPut:
 		updateBook(w, r)
+		return
+	case http.MethodDelete:
+		archiveStatusBook(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -136,7 +140,30 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 	}
 }
 
-/* Verifies with all fields are correctly filled and update the book in the db. */
+/* Change the status of a book to "archived". */
+func archiveStatusBook(w http.ResponseWriter, r *http.Request) {
+	id, err := isolateId(w, r)
+	if err != nil {
+		return
+	}
+	archived := true
+
+	archivedBook, err := archiveStatusOnDB(id, archived)
+	if err != nil {
+		if errors.Is(err, errResponseBookNotFound) {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, archivedBook)
+}
+
+/* Verifies if all fields are correctly filled and update the book in the db. */
 func updateBook(w http.ResponseWriter, r *http.Request) {
 	id, err := isolateId(w, r)
 	if err != nil {
@@ -255,8 +282,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	archived := false
+	archivedStr := query.Get("archived")
+	if archivedStr == "true" {
+		archived = true
+	}
+
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -292,10 +325,7 @@ func extractOrderParams(query url.Values) (sortBy string, sortDirection string, 
 	case "created_at":
 		break
 	case "updated_at":
-		break //IMPLEMENT THIS LATER, WHIT FUNCTION UPDATE BOOK
-		//https://x-team.com/blog/automatic-timestamps-with-postgresql/
-		//https://www.postgresqltutorial.com/postgresql-date-functions/postgresql-current_timestamp/
-		//https://www.postgresql.org/docs/15/sql-createtrigger.html
+		break
 	default:
 		return sortBy, sortDirection, false
 	}
