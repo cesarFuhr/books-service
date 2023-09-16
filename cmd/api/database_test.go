@@ -206,7 +206,7 @@ func TestListBooks(t *testing.T) {
 
 	is := is.New(t)
 	var testBookslist []Book
-	listSize := 11
+	listSize := 30
 
 	t.Run("List books without errors even if there is no books in the database", func(t *testing.T) {
 		is := is.New(t)
@@ -234,11 +234,11 @@ func TestListBooks(t *testing.T) {
 		testBookslist = append(testBookslist, b)
 	}
 
-	t.Run("List all books, no filtering, without errors", func(t *testing.T) {
+	t.Run("List all books, no filtering, without errors.", func(t *testing.T) {
 		is := is.New(t)
 
-		//Asking all books on the list
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true)
+		//Asking all books on the list. Expected 30 books on page 1.
+		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true) //, 1, 30
 		is.NoErr(err)
 		for i, expected := range testBookslist {
 			compareBooks(is, returnedBooks[i], expected)
