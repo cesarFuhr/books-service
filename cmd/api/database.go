@@ -79,11 +79,15 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 		name = "%"
 	}
 
+	portionLimit := 30
+	portionOffset := 0
+
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1
 	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3	
-	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
+	ORDER BY `, sortBy, ` `, sortDirection, ` 
+	LIMIT `, portionLimit, ` OFFSET `, portionOffset, ` ;`)
 
 	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
