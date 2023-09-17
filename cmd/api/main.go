@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	"github.com/google/uuid"
@@ -346,7 +347,7 @@ func main() {
 
 	//apply migrations:
 	err = migrationUp()
-	if err != nil {
+	if err != nil && err != migrate.ErrNoChange {
 		log.Println(err)
 		os.Exit(1)
 	}
