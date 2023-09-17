@@ -347,7 +347,7 @@ func main() {
 
 	//apply migrations:
 	err = migrationUp()
-	if err != nil && err != migrate.ErrNoChange {
+	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Println(err)
 		os.Exit(1)
 	}

@@ -7,7 +7,7 @@ mounts = []
 processes = []
 
 [env]
-  DATABASE_MIGRATION_PATH = "./migrations"
+  DATABASE_MIGRATION_PATH = "/src/migrations"
 
 [[services]]
   internal_port = 8080

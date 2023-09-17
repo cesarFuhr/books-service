@@ -13,7 +13,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: "postgres://postgres:chevas@db:5432/booksdb?sslmode=disable"
-      DATABASE_MIGRATIONS_PATH: "migrations"
+      DATABASE_MIGRATIONS_PATH: "/src/migrations"
       
   db:
     image: postgres:14.6-bullseye
