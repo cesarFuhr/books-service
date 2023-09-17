@@ -1,7 +1,7 @@
 {
   description = "Go 1.20 workspace";
 
-  inputs.nixpkgs.url = "nixpkgs/nixos-23.05";
+  inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
 
   outputs = { self, nixpkgs, flake-utils }:
@@ -26,7 +26,6 @@
                   p.gocode-gomod
                   p.godef
                   p.golint
-                  p.go-mockery
                   p.flyctl
                   p.act
                 ];
