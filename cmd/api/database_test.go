@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
 	"github.com/google/uuid"
 	"github.com/matryer/is"
 )
@@ -27,7 +28,10 @@ func TestMain(m *testing.M) {
 	os.Setenv("DATABASE_MIGRATIONS_PATH", "../../migrations")
 	err = migrationUp()
 	if err != nil {
-		log.Fatalln(err)
+		if !errors.Is(err, migrate.ErrNoChange) {
+			log.Fatalln(err)
+		}
+		log.Println(err)
 	}
 
 	os.Exit(m.Run())
@@ -212,8 +216,9 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true)
+		itemsTotal, returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
+		is.True(itemsTotal == 0)
 		is.Equal(returnedBooks, []Book{})
 	})
 
@@ -238,8 +243,9 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list. Expected 30 books on page 1.
-		returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true) //, 1, 30
+		itemsTotal, returnedBooks, err := listBooks("", 0.00, 9999.99, "name", "asc", true) //, 1, 30
 		is.NoErr(err)
+		is.True(itemsTotal == 30)
 		for i, expected := range testBookslist {
 			compareBooks(is, returnedBooks[i], expected)
 		}
@@ -250,8 +256,9 @@ func TestListBooks(t *testing.T) {
 
 		// Testing, by name, each book on the created list.
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc", true)
+			itemsTotal, returnedBook, err := listBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc", true)
 			is.NoErr(err)
+			is.True(itemsTotal == 1)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
 		}
@@ -262,14 +269,16 @@ func TestListBooks(t *testing.T) {
 
 		// Testing the different part of each name
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := listBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc", true)
+			itemsTotal, returnedBook, err := listBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc", true)
 			is.NoErr(err)
+			is.True(itemsTotal == 1)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
 		}
 		//Testing the common part of all names on the list
-		returnedBooks, err := listBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc", true)
+		itemsTotal, returnedBooks, err := listBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
+		is.True(itemsTotal == listSize)
 		is.True(len(returnedBooks) == listSize)
 		for i, expected := range testBookslist {
 			compareBooks(is, returnedBooks[i], expected)
@@ -280,7 +289,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price >= 501
-		returnedBooks, err := listBooks("", 501.00, 9999.99, "name", "asc", true)
+		_, returnedBooks, err := listBooks("", 501.00, 9999.99, "name", "asc", true)
 		is.NoErr(err)
 		for i, expected := range testBookslist[5:11] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -291,7 +300,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := listBooks("", 00.00, 501.00, "name", "asc", true)
+		_, returnedBooks, err := listBooks("", 00.00, 501.00, "name", "asc", true)
 		is.NoErr(err)
 		for i, expected := range testBookslist[0:6] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -301,7 +310,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("List all books without errors ordering by price, ascendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "asc", true)
+		_, returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "asc", true)
 		is.NoErr(err)
 		var lastPrice float32 = 0
 		for _, v := range returnedBooks {
@@ -313,7 +322,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("List all books without errors ordering by price, descendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "desc", true)
+		_, returnedBooks, err := listBooks("", 00.00, 9999.99, "price", "desc", true)
 		is.NoErr(err)
 		var lastPrice float32 = 9999.99
 		for _, v := range returnedBooks {
@@ -330,7 +339,7 @@ func TestListBooks(t *testing.T) {
 		is.True(archivedBook.Archived == true)
 
 		// Testing if the returned list has one book less and if all of the returned books are 'false' for 'archived'
-		returnedBook, err := listBooks("", 0.00, 9999.99, "name", "asc", false)
+		_, returnedBook, err := listBooks("", 0.00, 9999.99, "name", "asc", false)
 		is.NoErr(err)
 		is.True(len(returnedBook) == (listSize - 1))
 
@@ -342,8 +351,9 @@ func TestListBooks(t *testing.T) {
 	t.Run("Filtering a list by an archived book name returns an empty list, no errors.", func(t *testing.T) {
 		is := is.New(t)
 		//Book number 000000 was archived on last test.
-		returnedBook, err := listBooks("Book number 000000", 0.00, 9999.99, "name", "asc", false)
+		itemsTotal, returnedBook, err := listBooks("Book number 000000", 0.00, 9999.99, "name", "asc", false)
 		is.NoErr(err)
+		is.True(itemsTotal == 0)
 		is.True(len(returnedBook) == 0)
 	})
 }

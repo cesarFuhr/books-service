@@ -294,12 +294,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	}*/
 
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived)
+	itemsTotal, returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	log.Println(itemsTotal) //DEBUG CODE. REMOVE LATER
 
 	responseJSON(w, http.StatusOK, returnedBooks)
 }
