@@ -297,7 +297,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if itemsTotal == 0 {
-		responseJSON(w, http.StatusOK, nil) //DEBUG: check if the answer will be the same as an empty slice of Books.
+		responseJSON(w, http.StatusOK, []Book{})
 		return
 	}
 
@@ -314,8 +314,6 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	log.Println(itemsTotal) //DEBUG CODE. REMOVE LATER
 
 	type PagedBooks struct {
 		PageCurrent int    `json:"page_current"`
@@ -353,7 +351,7 @@ func pagination(query url.Values, itemsTotal int) (limit, offset, pagesTotal, pa
 	}
 
 	pageSizeStr := query.Get("page_size") //Convert page_size value to int and set default to 10.
-	if pageStr == "" {
+	if pageSizeStr == "" {
 		pageSize = 10
 	} else {
 		pageSize, err = strconv.Atoi(pageSizeStr)
@@ -424,7 +422,6 @@ func main() {
 	err = migrationUp()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Println(err)
-		os.Exit(1)
 	}
 
 	//start http server:
