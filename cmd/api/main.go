@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -289,13 +290,25 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		archived = true
 	}
 
-	/*pageStr := query.Get("page")
-	if pageStr == "true" {
-		archived = true
-	}*/
+	itemsTotal, err := countRows(name, minPrice32, maxPrice32, archived)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if itemsTotal == 0 {
+		responseJSON(w, http.StatusOK, nil) //DEBUG: check if the answer will be the same as an empty slice of Books.
+		return
+	}
+
+	limit, offset, pagesTotal, page, pageSize, err := pagination(query, itemsTotal)
+	if err != nil {
+		responseJSON(w, http.StatusBadRequest, err)
+		return
+	}
 
 	//Ask filtered list to db:
-	itemsTotal, returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, limit, offset)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -304,9 +317,64 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(itemsTotal) //DEBUG CODE. REMOVE LATER
 
-	responseJSON(w, http.StatusOK, returnedBooks)
+	type PagedBooks struct {
+		PageCurrent int    `json:"page_current"`
+		PageTotal   int    `json:"page_total"`
+		PageSize    int    `json:"page_size"`
+		ItemsTotal  int    `json:"items_total"`
+		Results     []Book `json:"results"`
+	}
+
+	pageOfBooksList := PagedBooks{
+		PageCurrent: page,
+		PageTotal:   pagesTotal,
+		PageSize:    pageSize,
+		ItemsTotal:  itemsTotal,
+		Results:     returnedBooks,
+	}
+
+	responseJSON(w, http.StatusOK, pageOfBooksList)
 }
 
+/*Validates and prepares the pagination parameters of the query.*/
+func pagination(query url.Values, itemsTotal int) (limit, offset, pagesTotal, page, pageSize int, err error) {
+
+	pageStr := query.Get("page") //Convert page value to int and set default to 1.
+	if pageStr == "" {
+		page = 1
+	} else {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil {
+			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+		}
+		if page <= 0 {
+			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+		}
+	}
+
+	pageSizeStr := query.Get("page_size") //Convert page_size value to int and set default to 10.
+	if pageStr == "" {
+		pageSize = 10
+	} else {
+		pageSize, err = strconv.Atoi(pageSizeStr)
+		if err != nil {
+			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+		}
+		if !(0 < pageSize && pageSize < 31) {
+			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+		}
+	}
+
+	pagesTotal = int(math.Ceil(float64(itemsTotal) / float64(pageSize)))
+	if page > pagesTotal {
+		return 0, 0, 0, 0, 0, errResponseQueryPageOutOfRange
+	}
+	offset = (page - 1) * pageSize
+	limit = pageSize + offset
+	return limit, offset, pagesTotal, page, pageSize, nil
+}
+
+/*Validates and prepares the ordering parameters of the query.*/
 func extractOrderParams(query url.Values) (sortBy string, sortDirection string, valid bool) {
 	sortDirection = query.Get("sort_direction")
 	switch sortDirection {

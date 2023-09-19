@@ -83,25 +83,18 @@ func countRows(name string, minPrice32, maxPrice32 float32, archived bool) (int,
 	if err != nil {
 		return count, fmt.Errorf("counting books from db: %w", err)
 	}
+
+	log.Println("items_total:", count) //DEBUG CODE. REMOVE LATER
 	return count, nil
 }
 
 /* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool) (int, []Book, error) {
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, limit, offset int) ([]Book, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
 		name = "%"
 	}
-
-	limit := 30
-	offset := 0
-
-	itemsTotal, err := countRows(name, minPrice32, maxPrice32, archived)
-	if err != nil {
-		return itemsTotal, nil, fmt.Errorf("listing books from db: %w", err)
-	}
-	log.Println("items_total:", itemsTotal) //DEBUG CODE. REMOVE LATER
 
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1
@@ -112,7 +105,7 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 
 	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
-		return itemsTotal, nil, fmt.Errorf("listing books from db: %w", err)
+		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
 	defer rows.Close()
 	bookslist := []Book{}
@@ -120,7 +113,7 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 	for rows.Next() {
 		err = rows.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 		if err != nil {
-			return itemsTotal, nil, fmt.Errorf("listing books from db: %w", err)
+			return nil, fmt.Errorf("listing books from db: %w", err)
 		}
 
 		bookslist = append(bookslist, bookToReturn)
@@ -128,10 +121,10 @@ func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 
 	err = rows.Err()
 	if err != nil {
-		return itemsTotal, nil, fmt.Errorf("listing books from db: %w", err)
+		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
 
-	return itemsTotal, bookslist, nil
+	return bookslist, nil
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
