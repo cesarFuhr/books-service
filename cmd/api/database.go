@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -72,6 +71,12 @@ func searchById(id uuid.UUID) (Book, error) {
 }
 
 func countRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
+	if name != "" {
+		name = fmt.Sprint("%", name, "%")
+	} else {
+		name = "%"
+	}
+
 	sqlStatement := `SELECT COUNT(*) FROM bookstable 
 	WHERE name ILIKE $1
 	AND (archived = $4 OR archived = FALSE)
@@ -84,7 +89,6 @@ func countRows(name string, minPrice32, maxPrice32 float32, archived bool) (int,
 		return count, fmt.Errorf("counting books from db: %w", err)
 	}
 
-	log.Println("items_total:", count) //DEBUG CODE. REMOVE LATER
 	return count, nil
 }
 
