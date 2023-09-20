@@ -422,6 +422,7 @@ func main() {
 	err = migrationUp()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		log.Println(err)
+		os.Exit(1)
 	}
 
 	//start http server:
