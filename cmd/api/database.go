@@ -93,12 +93,15 @@ func countRows(name string, minPrice32, maxPrice32 float32, archived bool) (int,
 }
 
 /* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, limit, offset int) ([]Book, error) {
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]Book, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
 		name = "%"
 	}
+
+	limit := pageSize
+	offset := (page - 1) * pageSize
 
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1

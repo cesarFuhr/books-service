@@ -301,14 +301,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	limit, offset, pagesTotal, page, pageSize, err := pagination(query, itemsTotal)
+	pagesTotal, page, pageSize, err := pagination(query, itemsTotal)
 	if err != nil {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
 	}
 
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, limit, offset)
+	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -335,7 +335,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 }
 
 /*Validates and prepares the pagination parameters of the query.*/
-func pagination(query url.Values, itemsTotal int) (limit, offset, pagesTotal, page, pageSize int, err error) {
+func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize int, err error) {
 
 	pageStr := query.Get("page") //Convert page value to int and set default to 1.
 	if pageStr == "" {
@@ -343,10 +343,10 @@ func pagination(query url.Values, itemsTotal int) (limit, offset, pagesTotal, pa
 	} else {
 		page, err = strconv.Atoi(pageStr)
 		if err != nil {
-			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, errResponseQueryPageInvalid
 		}
 		if page <= 0 {
-			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, errResponseQueryPageInvalid
 		}
 	}
 
@@ -356,20 +356,19 @@ func pagination(query url.Values, itemsTotal int) (limit, offset, pagesTotal, pa
 	} else {
 		pageSize, err = strconv.Atoi(pageSizeStr)
 		if err != nil {
-			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, errResponseQueryPageInvalid
 		}
 		if !(0 < pageSize && pageSize < 31) {
-			return 0, 0, 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, errResponseQueryPageInvalid
 		}
 	}
 
 	pagesTotal = int(math.Ceil(float64(itemsTotal) / float64(pageSize)))
 	if page > pagesTotal {
-		return 0, 0, 0, 0, 0, errResponseQueryPageOutOfRange
+		return 0, 0, 0, errResponseQueryPageOutOfRange
 	}
-	offset = (page - 1) * pageSize
-	limit = pageSize + offset
-	return limit, offset, pagesTotal, page, pageSize, nil
+
+	return pagesTotal, page, pageSize, nil
 }
 
 /*Validates and prepares the ordering parameters of the query.*/
