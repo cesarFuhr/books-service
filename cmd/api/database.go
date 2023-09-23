@@ -38,15 +38,14 @@ func migrationUp() error {
 	}
 
 	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
-	m, err := migrate.NewWithDatabaseInstance(
+	mGlobal, err = migrate.NewWithDatabaseInstance(
 		fmt.Sprintf("file://%s", path),
 		"postgres", driver)
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}
-	mGlobal = m
 
-	err = m.Up()
+	err = mGlobal.Up()
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}
@@ -71,19 +70,45 @@ func searchById(id uuid.UUID) (Book, error) {
 	return bookToReturn, nil
 }
 
-/* Returns filtered content of database in a list of books*/
-func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool) ([]Book, error) {
+func countRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
 		name = "%"
 	}
 
+	sqlStatement := `SELECT COUNT(*) FROM bookstable 
+	WHERE name ILIKE $1
+	AND (archived = $4 OR archived = FALSE)
+	AND price BETWEEN $2 AND $3;`
+
+	row := dbObjectGlobal.QueryRow(sqlStatement, name, minPrice32, maxPrice32, archived)
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return count, fmt.Errorf("counting books from db: %w", err)
+	}
+
+	return count, nil
+}
+
+/* Returns filtered content of database in a list of books*/
+func listBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]Book, error) {
+	if name != "" {
+		name = fmt.Sprint("%", name, "%")
+	} else {
+		name = "%"
+	}
+
+	limit := pageSize
+	offset := (page - 1) * pageSize
+
 	sqlStatement := fmt.Sprint(`SELECT * FROM bookstable 
 	WHERE name ILIKE $1
 	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3	
-	ORDER BY `, sortBy, ` `, sortDirection, ` ;`)
+	ORDER BY `, sortBy, ` `, sortDirection, ` 
+	LIMIT `, limit, ` OFFSET `, offset, ` ;`)
 
 	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
