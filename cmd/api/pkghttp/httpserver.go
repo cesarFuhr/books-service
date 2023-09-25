@@ -1,15 +1,15 @@
-package main
+package pkghttp
 
 import (
 	"fmt"
 	"net/http"
 )
 
-type serverConfig struct {
+type ServerConfig struct {
 	Port int
 }
 
-func newServer(config serverConfig) *http.Server {
+func NewServer(config ServerConfig) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/books", books)

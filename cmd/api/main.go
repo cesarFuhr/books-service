@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/books-service/cmd/api/pkghttp"
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
@@ -41,7 +42,7 @@ func run() error {
 	}
 
 	//create and init http server:
-	server := newServer(serverConfig{Port: 8080})
+	server := pkghttp.NewServer(pkghttp.ServerConfig{Port: 8080})
 
 	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

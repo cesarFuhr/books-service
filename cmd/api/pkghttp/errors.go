@@ -1,4 +1,4 @@
-package main
+package pkghttp
 
 type errResponse struct {
 	Code    int    `json:"error_code"`
