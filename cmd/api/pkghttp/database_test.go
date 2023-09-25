@@ -18,7 +18,7 @@ import (
 func TestMain(m *testing.M) {
 	// Setting up the database for tests.
 	os.Setenv("DATABASE_URL", "postgres://root:root@localhost:5432/booksdb?sslmode=disable")
-	db, err := connectDb()
+	db, err := ConnectDb()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 	dbObjectGlobal = db
 
 	os.Setenv("DATABASE_MIGRATIONS_PATH", "../../migrations")
-	err = migrationUp()
+	err = MigrationUp()
 	if err != nil {
 		if !errors.Is(err, migrate.ErrNoChange) {
 			log.Fatalln(err)

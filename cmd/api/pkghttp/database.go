@@ -10,15 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
-//==============DATABASE FUNCTIONS:=================
+var dbObjectGlobal *sql.DB
 
 /* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
-func connectDb() (*sql.DB, error) {
+func ConnectDb() (*sql.DB, error) {
 
 	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return db, fmt.Errorf("connecting to db: %w", err)
 	}
+
+	dbObjectGlobal = db
 
 	err = db.Ping()
 	if err != nil {
@@ -31,7 +33,7 @@ func connectDb() (*sql.DB, error) {
 
 var mGlobal *migrate.Migrate
 
-func migrationUp() error {
+func MigrationUp() error {
 	driver, err := postgres.WithInstance(dbObjectGlobal, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)

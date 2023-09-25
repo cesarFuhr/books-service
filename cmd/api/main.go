@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -9,13 +8,12 @@ import (
 	"os"
 
 	"github.com/books-service/cmd/api/pkghttp"
+
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 
 	_ "github.com/lib/pq"
 )
-
-var dbObjectGlobal *sql.DB
 
 func main() {
 	err := run()
@@ -27,16 +25,15 @@ func main() {
 
 func run() error {
 	//connect to db:
-	dbObject, err := connectDb()
+	dbObject, err := pkghttp.ConnectDb()
 	if err != nil {
 		return fmt.Errorf("connecting with db: %w", err)
 	}
 
-	dbObjectGlobal = dbObject
-	defer dbObjectGlobal.Close()
+	defer dbObject.Close()
 
 	//apply migrations:
-	err = migrationUp()
+	err = pkghttp.MigrationUp()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("migrating: %w", err)
 	}
