@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -16,11 +17,18 @@ import (
 var dbObjectGlobal *sql.DB
 
 func main() {
-	//connect to db:
-	dbObject, err := connectDb()
+	err := run()
 	if err != nil {
 		log.Println(err)
 		os.Exit(1)
+	}
+}
+
+func run() error {
+	//connect to db:
+	dbObject, err := connectDb()
+	if err != nil {
+		return fmt.Errorf("connecting with db: %w", err)
 	}
 
 	dbObjectGlobal = dbObject
@@ -29,8 +37,7 @@ func main() {
 	//apply migrations:
 	err = migrationUp()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		log.Println(err)
-		os.Exit(1)
+		return fmt.Errorf("migrating: %w", err)
 	}
 
 	//start http server:
@@ -38,5 +45,9 @@ func main() {
 	http.HandleFunc("/books", books)
 	http.HandleFunc("/books/", bookById)
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return fmt.Errorf("unexpected http server error: %w", err)
+	}
+	return nil
 }
