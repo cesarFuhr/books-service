@@ -1,8 +1,9 @@
-package pkghttp
+package book
 
 import (
 	"time"
 
+	"github.com/books-service/cmd/api/pkgerrors"
 	"github.com/google/uuid"
 )
 
@@ -17,15 +18,15 @@ type Book struct {
 }
 
 /* Verifies if all entry fields are filled and returns a warning message if so. */
-func filledFields(bookEntry Book) error {
+func FilledFields(bookEntry Book) error {
 	if bookEntry.Name == "" {
-		return errResponseBookEntryBlankFileds
+		return pkgerrors.ErrResponseBookEntryBlankFileds
 	}
 	if bookEntry.Price == nil {
-		return errResponseBookEntryBlankFileds
+		return pkgerrors.ErrResponseBookEntryBlankFileds
 	}
 	if bookEntry.Inventory == nil {
-		return errResponseBookEntryBlankFileds
+		return pkgerrors.ErrResponseBookEntryBlankFileds
 	}
 
 	return nil

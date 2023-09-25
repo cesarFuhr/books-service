@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/books-service/cmd/api/database"
 	"github.com/books-service/cmd/api/pkghttp"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -25,7 +26,7 @@ func main() {
 
 func run() error {
 	//connect to db:
-	dbObject, err := pkghttp.ConnectDb()
+	dbObject, err := database.ConnectDb()
 	if err != nil {
 		return fmt.Errorf("connecting with db: %w", err)
 	}
@@ -33,7 +34,7 @@ func run() error {
 	defer dbObject.Close()
 
 	//apply migrations:
-	err = pkghttp.MigrationUp()
+	err = database.MigrationUp()
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("migrating: %w", err)
 	}

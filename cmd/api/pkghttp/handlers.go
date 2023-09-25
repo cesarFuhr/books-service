@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/books-service/cmd/api/book"
+	"github.com/books-service/cmd/api/database"
+	"github.com/books-service/cmd/api/pkgerrors"
 	"github.com/google/uuid"
 )
 
@@ -53,7 +56,7 @@ func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error)
 	id, err = uuid.Parse(justId)
 	if err != nil {
 		log.Println(err)
-		responseJSON(w, http.StatusBadRequest, errResponseIdInvalidFormat)
+		responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseIdInvalidFormat)
 		return id, err
 	}
 	return id, nil
@@ -66,9 +69,9 @@ func getBookById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//Searching for that ID on database:
-	returnedBook, err := searchById(id)
+	returnedBook, err := database.SearchById(id)
 	if err != nil {
-		if errors.Is(err, errResponseBookNotFound) {
+		if errors.Is(err, pkgerrors.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -117,9 +120,9 @@ func archiveStatusBook(w http.ResponseWriter, r *http.Request) {
 	}
 	archived := true
 
-	archivedBook, err := archiveStatusOnDB(id, archived)
+	archivedBook, err := database.ArchiveStatusOnDB(id, archived)
 	if err != nil {
-		if errors.Is(err, errResponseBookNotFound) {
+		if errors.Is(err, pkgerrors.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -139,19 +142,19 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var bookEntry Book
+	var bookEntry book.Book
 	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
-		errR := errResponse{
-			Code:    errResponseBookEntryInvalidJSON.Code,
-			Message: errResponseBookEntryInvalidJSON.Message + err.Error(),
+		errR := pkgerrors.ErrResponse{
+			Code:    pkgerrors.ErrResponseBookEntryInvalidJSON.Code,
+			Message: pkgerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
-	err = filledFields(bookEntry) //Verify if all entry fields are filled.
+	err = book.FilledFields(bookEntry) //Verify if all entry fields are filled.
 	if err != nil {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
@@ -160,9 +163,9 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 	bookEntry.ID = id
 	bookEntry.UpdatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute a new updating time to the new entry.
 
-	updatedBook, err := updateOnDB(bookEntry) //Update the book in the database
+	updatedBook, err := database.UpdateOnDB(bookEntry) //Update the book in the database
 	if err != nil {
-		if errors.Is(err, errResponseBookNotFound) {
+		if errors.Is(err, pkgerrors.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -177,19 +180,19 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 
 /* Stores the entry as a new book in the database. */
 func createBook(w http.ResponseWriter, r *http.Request) {
-	var bookEntry Book
+	var bookEntry book.Book
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
-		errR := errResponse{
-			Code:    errResponseBookEntryInvalidJSON.Code,
-			Message: errResponseBookEntryInvalidJSON.Message + err.Error(),
+		errR := pkgerrors.ErrResponse{
+			Code:    pkgerrors.ErrResponseBookEntryInvalidJSON.Code,
+			Message: pkgerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
-	err = filledFields(bookEntry) //Verify if all entry fields are filled.
+	err = book.FilledFields(bookEntry) //Verify if all entry fields are filled.
 	if err != nil {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
@@ -200,7 +203,7 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	bookEntry.CreatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
 	bookEntry.UpdatedAt = bookEntry.CreatedAt
 
-	storedBook, err := storeOnDB(bookEntry) //Store the book in the database
+	storedBook, err := database.StoreOnDB(bookEntry) //Store the book in the database
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -224,7 +227,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	if minPriceStr != "" {
 		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
 		if err != nil {
-			responseJSON(w, http.StatusBadRequest, errResponseQueryPriceInvalidFormat)
+			responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseQueryPriceInvalidFormat)
 			return
 		}
 		minPrice32 = float32(minPrice64)
@@ -237,7 +240,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	if maxPriceStr != "" {
 		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
 		if err != nil {
-			responseJSON(w, http.StatusBadRequest, errResponseQueryPriceInvalidFormat)
+			responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseQueryPriceInvalidFormat)
 			return
 		}
 		maxPrice32 = float32(maxPrice64)
@@ -247,7 +250,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 
 	sortBy, sortDirection, valid := extractOrderParams(query)
 	if !valid {
-		responseJSON(w, http.StatusBadRequest, errResponseQuerySortByInvalid)
+		responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseQuerySortByInvalid)
 		return
 	}
 
@@ -257,14 +260,14 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 		archived = true
 	}
 
-	itemsTotal, err := countRows(name, minPrice32, maxPrice32, archived)
+	itemsTotal, err := database.CountRows(name, minPrice32, maxPrice32, archived)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	if itemsTotal == 0 {
-		responseJSON(w, http.StatusOK, []Book{})
+		responseJSON(w, http.StatusOK, []book.Book{})
 		return
 	}
 
@@ -275,7 +278,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Ask filtered list to db:
-	returnedBooks, err := listBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
+	returnedBooks, err := database.ListBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -283,11 +286,11 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type PagedBooks struct {
-		PageCurrent int    `json:"page_current"`
-		PageTotal   int    `json:"page_total"`
-		PageSize    int    `json:"page_size"`
-		ItemsTotal  int    `json:"items_total"`
-		Results     []Book `json:"results"`
+		PageCurrent int         `json:"page_current"`
+		PageTotal   int         `json:"page_total"`
+		PageSize    int         `json:"page_size"`
+		ItemsTotal  int         `json:"items_total"`
+		Results     []book.Book `json:"results"`
 	}
 
 	pageOfBooksList := PagedBooks{
@@ -310,10 +313,10 @@ func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize in
 	} else {
 		page, err = strconv.Atoi(pageStr)
 		if err != nil {
-			return 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
 		}
 		if page <= 0 {
-			return 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
 		}
 	}
 
@@ -323,16 +326,16 @@ func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize in
 	} else {
 		pageSize, err = strconv.Atoi(pageSizeStr)
 		if err != nil {
-			return 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
 		}
 		if !(0 < pageSize && pageSize < 31) {
-			return 0, 0, 0, errResponseQueryPageInvalid
+			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
 		}
 	}
 
 	pagesTotal = int(math.Ceil(float64(itemsTotal) / float64(pageSize)))
 	if page > pagesTotal {
-		return 0, 0, 0, errResponseQueryPageOutOfRange
+		return 0, 0, 0, pkgerrors.ErrResponseQueryPageOutOfRange
 	}
 
 	return pagesTotal, page, pageSize, nil
