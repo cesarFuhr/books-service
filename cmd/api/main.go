@@ -40,12 +40,10 @@ func run() error {
 		return fmt.Errorf("migrating: %w", err)
 	}
 
-	//start http server:
-	http.HandleFunc("/ping", ping)
-	http.HandleFunc("/books", books)
-	http.HandleFunc("/books/", bookById)
+	//create and init http server:
+	server := newServer(serverConfig{Port: 8080})
 
-	err = http.ListenAndServe(":8080", nil)
+	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("unexpected http server error: %w", err)
 	}
