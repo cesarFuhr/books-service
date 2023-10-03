@@ -1,6 +1,9 @@
-package database
+//go test ./cmd/api/database  -> to run just this test
+
+package database_test
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -9,26 +12,34 @@ import (
 	"time"
 
 	"github.com/books-service/cmd/api/book"
-	"github.com/books-service/cmd/api/pkgerrors"
+	"github.com/books-service/cmd/api/database"
+	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/google/uuid"
 	"github.com/matryer/is"
+
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	_ "github.com/lib/pq"
 )
+
+var store *database.Store
+var sqlDB *sql.DB
 
 // TestMain is called before all the tests run.
 // Usually is where we add logic to initialise resources.
 func TestMain(m *testing.M) {
 	// Setting up the database for tests.
-	os.Setenv("DATABASE_URL", "postgres://root:root@localhost:5432/booksdb?sslmode=disable")
-	db, err := ConnectDb()
+	var err error
+	sqlDB, err = database.ConnectDb("postgres://root:root@localhost:5432/booksdb?sslmode=disable")
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	dbObjectGlobal = db
+	store = database.NewStore(sqlDB)
 
-	os.Setenv("DATABASE_MIGRATIONS_PATH", "../../migrations")
-	err = MigrationUp()
+	err = database.MigrationUp(store, "../../../migrations")
 	if err != nil {
 		if !errors.Is(err, migrate.ErrNoChange) {
 			log.Fatalln(err)
@@ -59,7 +70,7 @@ func TestCreateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := StoreOnDB(b)
+		newBook, err := store.StoreOnDB(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 	})
@@ -83,12 +94,12 @@ func TestArchiveStatusBook(t *testing.T) {
 			Archived:  false,
 		}
 
-		newBook, err := StoreOnDB(b)
+		newBook, err := store.StoreOnDB(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
 		//Archiving the created book.
-		archivedBook, err := ArchiveStatusOnDB(b.ID, true)
+		archivedBook, err := store.ArchiveStatusOnDB(b.ID, true)
 		is.NoErr(err)
 
 		//Changing the status of 'arquived' field of local book to be compare afterwards.
@@ -110,8 +121,8 @@ func TestArchiveStatusBook(t *testing.T) {
 			Archived:  false,
 		}
 
-		archivedBook, err := ArchiveStatusOnDB(nonexistentBook.ID, true)
-		is.True(errors.Is(err, pkgerrors.ErrResponseBookNotFound))
+		archivedBook, err := store.ArchiveStatusOnDB(nonexistentBook.ID, true)
+		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
 		compareBooks(is, archivedBook, book.Book{})
 	})
 
@@ -134,7 +145,7 @@ func TestUpdateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := StoreOnDB(b)
+		newBook, err := store.StoreOnDB(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -144,7 +155,7 @@ func TestUpdateBook(t *testing.T) {
 		b.Inventory = toPointer(9)
 		b.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
 
-		updatedBook, err := UpdateOnDB(b)
+		updatedBook, err := store.UpdateOnDB(b)
 		is.NoErr(err)
 		compareBooks(is, updatedBook, b)
 	})
@@ -161,8 +172,8 @@ func TestUpdateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		returnedBook, err := UpdateOnDB(nonexistentBook)
-		is.True(errors.Is(err, pkgerrors.ErrResponseBookNotFound))
+		returnedBook, err := store.UpdateOnDB(nonexistentBook)
+		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
 	})
 }
@@ -185,12 +196,12 @@ func TestGetBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := StoreOnDB(b)
+		newBook, err := store.StoreOnDB(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
 		// Write the Get Book test here.
-		returnedBook, err := SearchById(b.ID)
+		returnedBook, err := store.SearchById(b.ID)
 		is.NoErr(err)
 		compareBooks(is, returnedBook, b)
 	})
@@ -199,8 +210,8 @@ func TestGetBook(t *testing.T) {
 		is := is.New(t)
 
 		// Write the Get Book test here.
-		returnedBook, err := SearchById(uuid.New())
-		is.True(errors.Is(err, pkgerrors.ErrResponseBookNotFound))
+		returnedBook, err := store.SearchById(uuid.New())
+		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
 	})
 }
@@ -218,7 +229,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		// Write the List Books test here.
-		returnedBooks, err := ListBooks("", 0.00, 9999.99, "name", "asc", true, 30, 0)
+		returnedBooks, err := store.ListBooks("", 0.00, 9999.99, "name", "asc", true, 30, 0)
 		is.NoErr(err)
 		is.Equal(returnedBooks, []book.Book{})
 	})
@@ -234,7 +245,7 @@ func TestListBooks(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := StoreOnDB(b)
+		newBook, err := store.StoreOnDB(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 		testBookslist = append(testBookslist, b)
@@ -244,10 +255,10 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list. Expected 30 books on page 1.
-		itemsTotal, err := CountRows("", 0.00, 9999.99, true)
+		itemsTotal, err := store.CountRows("", 0.00, 9999.99, true)
 		is.NoErr(err)
 		is.True(itemsTotal == 30)
-		returnedBooks, err := ListBooks("", 0.00, 9999.99, "name", "asc", true, 1, 30)
+		returnedBooks, err := store.ListBooks("", 0.00, 9999.99, "name", "asc", true, 1, 30)
 		is.NoErr(err)
 		for i, expected := range testBookslist {
 			compareBooks(is, returnedBooks[i], expected)
@@ -259,10 +270,10 @@ func TestListBooks(t *testing.T) {
 
 		//Asking 10 books of the list each time.
 		for p := 1; p <= 3; p++ {
-			itemsTotal, err := CountRows("", 0.00, 9999.99, true)
+			itemsTotal, err := store.CountRows("", 0.00, 9999.99, true)
 			is.NoErr(err)
 			is.True(itemsTotal == 30)
-			returnedBooks, err := ListBooks("", 0.00, 9999.99, "name", "asc", true, p, 10)
+			returnedBooks, err := store.ListBooks("", 0.00, 9999.99, "name", "asc", true, p, 10)
 			is.NoErr(err)
 			is.True(len(returnedBooks) == 10)
 			for i, expected := range testBookslist[((p - 1) * 10):(((p - 1) * 10) + 9)] {
@@ -276,7 +287,7 @@ func TestListBooks(t *testing.T) {
 
 		// Testing, by name, each book on the created list.
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := ListBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc", true, 1, 30)
+			returnedBook, err := store.ListBooks(fmt.Sprintf("Book number %06v", i), 0.00, 9999.99, "name", "asc", true, 1, 30)
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
@@ -288,13 +299,13 @@ func TestListBooks(t *testing.T) {
 
 		// Testing the different part of each name
 		for i := 0; i < listSize; i++ {
-			returnedBook, err := ListBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc", true, 1, 30)
+			returnedBook, err := store.ListBooks(fmt.Sprintf( /* Book */ "number %06v", i), 0.00, 9999.99, "name", "asc", true, 1, 30)
 			is.NoErr(err)
 			is.True(len(returnedBook) == 1)
 			compareBooks(is, returnedBook[0], testBookslist[i])
 		}
 		//Testing the common part of all names on the list
-		returnedBooks, err := ListBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc", true, 1, 30)
+		returnedBooks, err := store.ListBooks("Book number" /* %06v, i */, 0.00, 9999.99, "name", "asc", true, 1, 30)
 		is.NoErr(err)
 		is.True(len(returnedBooks) == listSize)
 		for i, expected := range testBookslist {
@@ -306,7 +317,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price >= 501
-		returnedBooks, err := ListBooks("", 501.00, 9999.99, "name", "asc", true, 1, 30)
+		returnedBooks, err := store.ListBooks("", 501.00, 9999.99, "name", "asc", true, 1, 30)
 		is.NoErr(err)
 		for i, expected := range testBookslist[5:11] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -317,7 +328,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the created list with price <= 501
-		returnedBooks, err := ListBooks("", 00.00, 501.00, "name", "asc", true, 1, 30)
+		returnedBooks, err := store.ListBooks("", 00.00, 501.00, "name", "asc", true, 1, 30)
 		is.NoErr(err)
 		for i, expected := range testBookslist[0:6] {
 			compareBooks(is, returnedBooks[i], expected)
@@ -327,7 +338,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("List all books without errors ordering by price, ascendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := ListBooks("", 00.00, 9999.99, "price", "asc", true, 1, 30)
+		returnedBooks, err := store.ListBooks("", 00.00, 9999.99, "price", "asc", true, 1, 30)
 		is.NoErr(err)
 		var lastPrice float32 = 0
 		for _, v := range returnedBooks {
@@ -339,7 +350,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("List all books without errors ordering by price, descendent direction", func(t *testing.T) {
 		is := is.New(t)
 
-		returnedBooks, err := ListBooks("", 00.00, 9999.99, "price", "desc", true, 1, 30)
+		returnedBooks, err := store.ListBooks("", 00.00, 9999.99, "price", "desc", true, 1, 30)
 		is.NoErr(err)
 		var lastPrice float32 = 9999.99
 		for _, v := range returnedBooks {
@@ -351,12 +362,12 @@ func TestListBooks(t *testing.T) {
 	t.Run("List not archived books without errors", func(t *testing.T) {
 		is := is.New(t)
 		//Archiving one book of the list
-		archivedBook, err := ArchiveStatusOnDB(testBookslist[0].ID, true)
+		archivedBook, err := store.ArchiveStatusOnDB(testBookslist[0].ID, true)
 		is.NoErr(err)
 		is.True(archivedBook.Archived == true)
 
 		// Testing if the returned list has one book less and if all of the returned books are 'false' for 'archived'
-		returnedBook, err := ListBooks("", 0.00, 9999.99, "name", "asc", false, 1, 30)
+		returnedBook, err := store.ListBooks("", 0.00, 9999.99, "name", "asc", false, 1, 30)
 		is.NoErr(err)
 		is.True(len(returnedBook) == (listSize - 1))
 
@@ -368,7 +379,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("Filtering a list by an archived book name returns an empty list, no errors.", func(t *testing.T) {
 		is := is.New(t)
 		//Book number 000000 was archived on last test.
-		returnedBook, err := ListBooks("Book number 000000", 0.00, 9999.99, "name", "asc", false, 1, 30)
+		returnedBook, err := store.ListBooks("Book number 000000", 0.00, 9999.99, "name", "asc", false, 1, 30)
 		is.NoErr(err)
 		is.True(len(returnedBook) == 0)
 	})
@@ -376,11 +387,19 @@ func TestListBooks(t *testing.T) {
 
 func TestDownMigrations(t *testing.T) {
 	is := is.New(t)
+	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
+	is.NoErr(err)
+
+	m, err := migrate.NewWithDatabaseInstance(
+		fmt.Sprintf("file://%s", "../../../migrations"),
+		"postgres", driver)
+	is.NoErr(err)
+
 	t.Cleanup(func() {
-		is.NoErr(mGlobal.Up())
+		is.NoErr(m.Up())
 	})
 
-	err := mGlobal.Down()
+	err = m.Down()
 	is.NoErr(err)
 	sqlStatement := `SELECT EXISTS (
 		SELECT FROM 
@@ -389,7 +408,7 @@ func TestDownMigrations(t *testing.T) {
 			schemaname = 'public' AND 
 			tablename  = 'bookstable'
 		);`
-	check := dbObjectGlobal.QueryRow(sqlStatement)
+	check := sqlDB.QueryRow(sqlStatement)
 	var tableExists bool
 	err = check.Scan(&tableExists)
 	is.NoErr(err)
@@ -421,7 +440,7 @@ func teardownDB(t *testing.T) {
 	is := is.New(t)
 
 	// Truncating books table, cleaning up all the records.
-	result, err := dbObjectGlobal.Exec(`TRUNCATE TABLE public.bookstable`)
+	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable`)
 	is.NoErr(err)
 
 	_, err = result.RowsAffected()

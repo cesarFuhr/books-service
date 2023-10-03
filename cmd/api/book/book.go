@@ -3,7 +3,7 @@ package book
 import (
 	"time"
 
-	"github.com/books-service/cmd/api/pkgerrors"
+	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/google/uuid"
 )
 
@@ -20,13 +20,13 @@ type Book struct {
 /* Verifies if all entry fields are filled and returns a warning message if so. */
 func FilledFields(bookEntry Book) error {
 	if bookEntry.Name == "" {
-		return pkgerrors.ErrResponseBookEntryBlankFileds
+		return bookerrors.ErrResponseBookEntryBlankFileds
 	}
 	if bookEntry.Price == nil {
-		return pkgerrors.ErrResponseBookEntryBlankFileds
+		return bookerrors.ErrResponseBookEntryBlankFileds
 	}
 	if bookEntry.Inventory == nil {
-		return pkgerrors.ErrResponseBookEntryBlankFileds
+		return bookerrors.ErrResponseBookEntryBlankFileds
 	}
 
 	return nil

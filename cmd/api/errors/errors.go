@@ -1,4 +1,4 @@
-package pkgerrors
+package errors
 
 type ErrResponse struct {
 	Code    int    `json:"error_code"`

@@ -3,53 +3,58 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"os"
+	"log"
 
 	"github.com/books-service/cmd/api/book"
-	"github.com/books-service/cmd/api/pkgerrors"
+	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/google/uuid"
+
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+
+	_ "github.com/lib/pq"
 )
 
-var dbObjectGlobal *sql.DB
-
-/* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
-func ConnectDb() (*sql.DB, error) {
-
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-	if err != nil {
-		return db, fmt.Errorf("connecting to db: %w", err)
-	}
-
-	dbObjectGlobal = db
-
-	err = db.Ping()
-	if err != nil {
-		return db, fmt.Errorf("connecting to db: %w", err)
-	}
-
-	fmt.Println("Successfully connected!")
-	return db, nil
+type Store struct {
+	db *sql.DB
 }
 
-var mGlobal *migrate.Migrate
+/* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
+func ConnectDb(connStr string) (*sql.DB, error) {
 
-func MigrationUp() error {
-	driver, err := postgres.WithInstance(dbObjectGlobal, &postgres.Config{})
+	sqlDB, err := sql.Open("postgres", connStr)
+	if err != nil {
+		return nil, fmt.Errorf("connecting to db: %w", err)
+	}
+
+	err = sqlDB.Ping()
+	if err != nil {
+		return nil, fmt.Errorf("connecting to db: %w", err)
+	}
+
+	log.Println("Successfully connected!")
+	return sqlDB, nil
+}
+
+func NewStore(db *sql.DB) *Store {
+	return &Store{db: db}
+}
+
+func MigrationUp(store *Store, path string) error {
+	driver, err := postgres.WithInstance(store.db, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}
 
-	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
-	mGlobal, err = migrate.NewWithDatabaseInstance(
+	m, err := migrate.NewWithDatabaseInstance(
 		fmt.Sprintf("file://%s", path),
 		"postgres", driver)
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}
 
-	err = mGlobal.Up()
+	err = m.Up()
 	if err != nil {
 		return fmt.Errorf("migrating up: %w", err)
 	}
@@ -57,15 +62,15 @@ func MigrationUp() error {
 }
 
 /* Searches a book in database based on ID and returns it if succeed. */
-func SearchById(id uuid.UUID) (book.Book, error) {
+func (store *Store) SearchById(id uuid.UUID) (book.Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
-	foundRow := dbObjectGlobal.QueryRow(sqlStatement, id)
+	foundRow := store.db.QueryRow(sqlStatement, id)
 	var bookToReturn book.Book
 	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("searching by ID: %w", pkgerrors.ErrResponseBookNotFound)
+			return book.Book{}, fmt.Errorf("searching by ID: %w", bookerrors.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("searching by ID: %w", err)
 		}
@@ -74,7 +79,7 @@ func SearchById(id uuid.UUID) (book.Book, error) {
 	return bookToReturn, nil
 }
 
-func CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
+func (store *Store) CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
@@ -86,7 +91,7 @@ func CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int,
 	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3;`
 
-	row := dbObjectGlobal.QueryRow(sqlStatement, name, minPrice32, maxPrice32, archived)
+	row := store.db.QueryRow(sqlStatement, name, minPrice32, maxPrice32, archived)
 	var count int
 	err := row.Scan(&count)
 	if err != nil {
@@ -97,7 +102,7 @@ func CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int,
 }
 
 /* Returns filtered content of database in a list of books*/
-func ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
+func (store *Store) ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
@@ -114,7 +119,7 @@ func ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 	ORDER BY `, sortBy, ` `, sortDirection, ` 
 	LIMIT `, limit, ` OFFSET `, offset, ` ;`)
 
-	rows, err := dbObjectGlobal.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
+	rows, err := store.db.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
@@ -139,12 +144,12 @@ func ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirectio
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
-func StoreOnDB(bookEntry book.Book) (book.Book, error) {
+func (store *Store) StoreOnDB(bookEntry book.Book) (book.Book, error) {
 	sqlStatement := `
 	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING *`
-	createdRow := dbObjectGlobal.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
+	createdRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
 	var bookToReturn book.Book
 	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -155,19 +160,19 @@ func StoreOnDB(bookEntry book.Book) (book.Book, error) {
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
-func UpdateOnDB(bookEntry book.Book) (book.Book, error) {
+func (store *Store) UpdateOnDB(bookEntry book.Book) (book.Book, error) {
 	sqlStatement := `
 	UPDATE bookstable 
 	SET name = $2, price = $3, inventory = $4, updated_at = $5
 	WHERE id = $1
 	RETURNING *`
-	updatedRow := dbObjectGlobal.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
+	updatedRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
 	var bookToReturn book.Book
 	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("updating on db: %w", pkgerrors.ErrResponseBookNotFound)
+			return book.Book{}, fmt.Errorf("updating on db: %w", bookerrors.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("updating on db: %w", err)
 		}
@@ -177,19 +182,19 @@ func UpdateOnDB(bookEntry book.Book) (book.Book, error) {
 }
 
 /* Change the status of 'archived' column on database. */
-func ArchiveStatusOnDB(id uuid.UUID, archived bool) (book.Book, error) {
+func (store *Store) ArchiveStatusOnDB(id uuid.UUID, archived bool) (book.Book, error) {
 	sqlStatement := `
 	UPDATE bookstable 
 	SET archived = $2
 	WHERE id = $1
 	RETURNING *`
-	updatedRow := dbObjectGlobal.QueryRow(sqlStatement, id, archived)
+	updatedRow := store.db.QueryRow(sqlStatement, id, archived)
 	var bookToReturn book.Book
 	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("archiving on db: %w", pkgerrors.ErrResponseBookNotFound)
+			return book.Book{}, fmt.Errorf("archiving on db: %w", bookerrors.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("archiving on db: %w", err)
 		}
