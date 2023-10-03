@@ -13,7 +13,7 @@ import (
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
-	"github.com/books-service/cmd/api/pkgerrors"
+	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/google/uuid"
 )
 
@@ -56,7 +56,7 @@ func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error)
 	id, err = uuid.Parse(justId)
 	if err != nil {
 		log.Println(err)
-		responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseIdInvalidFormat)
+		responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseIdInvalidFormat)
 		return id, err
 	}
 	return id, nil
@@ -69,9 +69,12 @@ func getBookById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//Searching for that ID on database:
-	returnedBook, err := database.SearchById(id)
+	returnedBook, err := database.SearchById(id) //DOUBTS:
+	//	1) Should handlers.go be calling a function of database.go? Maybe book.go could be between them
+	//  2) main.go has called func NewStore to migrateUp. Does that store variable returned have to be the same
+	//     used here (or in book.go) to acess the methods (search, list, etc) or can we use a different one?
 	if err != nil {
-		if errors.Is(err, pkgerrors.ErrResponseBookNotFound) {
+		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -122,7 +125,7 @@ func archiveStatusBook(w http.ResponseWriter, r *http.Request) {
 
 	archivedBook, err := database.ArchiveStatusOnDB(id, archived)
 	if err != nil {
-		if errors.Is(err, pkgerrors.ErrResponseBookNotFound) {
+		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -146,9 +149,9 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
-		errR := pkgerrors.ErrResponse{
-			Code:    pkgerrors.ErrResponseBookEntryInvalidJSON.Code,
-			Message: pkgerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+		errR := bookerrors.ErrResponse{
+			Code:    bookerrors.ErrResponseBookEntryInvalidJSON.Code,
+			Message: bookerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
@@ -165,7 +168,7 @@ func updateBook(w http.ResponseWriter, r *http.Request) {
 
 	updatedBook, err := database.UpdateOnDB(bookEntry) //Update the book in the database
 	if err != nil {
-		if errors.Is(err, pkgerrors.ErrResponseBookNotFound) {
+		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -184,9 +187,9 @@ func createBook(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
-		errR := pkgerrors.ErrResponse{
-			Code:    pkgerrors.ErrResponseBookEntryInvalidJSON.Code,
-			Message: pkgerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+		errR := bookerrors.ErrResponse{
+			Code:    bookerrors.ErrResponseBookEntryInvalidJSON.Code,
+			Message: bookerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
@@ -227,7 +230,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	if minPriceStr != "" {
 		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
 		if err != nil {
-			responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseQueryPriceInvalidFormat)
+			responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseQueryPriceInvalidFormat)
 			return
 		}
 		minPrice32 = float32(minPrice64)
@@ -240,7 +243,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 	if maxPriceStr != "" {
 		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
 		if err != nil {
-			responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseQueryPriceInvalidFormat)
+			responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseQueryPriceInvalidFormat)
 			return
 		}
 		maxPrice32 = float32(maxPrice64)
@@ -250,7 +253,7 @@ func getBooks(w http.ResponseWriter, r *http.Request) {
 
 	sortBy, sortDirection, valid := extractOrderParams(query)
 	if !valid {
-		responseJSON(w, http.StatusBadRequest, pkgerrors.ErrResponseQuerySortByInvalid)
+		responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseQuerySortByInvalid)
 		return
 	}
 
@@ -313,10 +316,10 @@ func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize in
 	} else {
 		page, err = strconv.Atoi(pageStr)
 		if err != nil {
-			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
 		}
 		if page <= 0 {
-			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
 		}
 	}
 
@@ -326,16 +329,16 @@ func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize in
 	} else {
 		pageSize, err = strconv.Atoi(pageSizeStr)
 		if err != nil {
-			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
 		}
 		if !(0 < pageSize && pageSize < 31) {
-			return 0, 0, 0, pkgerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
 		}
 	}
 
 	pagesTotal = int(math.Ceil(float64(itemsTotal) / float64(pageSize)))
 	if page > pagesTotal {
-		return 0, 0, 0, pkgerrors.ErrResponseQueryPageOutOfRange
+		return 0, 0, 0, bookerrors.ErrResponseQueryPageOutOfRange
 	}
 
 	return pagesTotal, page, pageSize, nil

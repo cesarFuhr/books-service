@@ -26,7 +26,8 @@ func main() {
 
 func run() error {
 	//connect to db:
-	dbObject, err := database.ConnectDb()
+	connStr := os.Getenv("DATABASE_URL") //I'M STILL CONFUSED ABOUT THAT. IN DATABASE_TEST WE CHANGED THE ENV BY A LITERAL
+	dbObject, err := database.ConnectDb(connStr)
 	if err != nil {
 		return fmt.Errorf("connecting with db: %w", err)
 	}
@@ -34,7 +35,9 @@ func run() error {
 	defer dbObject.Close()
 
 	//apply migrations:
-	err = database.MigrationUp()
+	store := database.NewStore(dbObject)
+	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
+	err = database.MigrationUp(store, path)
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("migrating: %w", err)
 	}
