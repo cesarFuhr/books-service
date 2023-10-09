@@ -183,7 +183,7 @@ func (store *Store) UpdateOnDB(bookEntry book.Book) (book.Book, error) {
 }
 
 /* Change the status of 'archived' column on database. */
-func (store *Store) ArchiveStatusOnDB(id uuid.UUID, archived bool) (book.Book, error) {
+func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, error) {
 	sqlStatement := `
 	UPDATE bookstable 
 	SET archived = $2

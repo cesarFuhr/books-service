@@ -39,7 +39,7 @@ func ping(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/* Handles a call to /books/(exected id here) and redirects depending on the requested action.  */
+/* Handles a call to /books/(expected id here) and redirects depending on the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	switch method {
@@ -50,7 +50,7 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 		updateBook(w, r)
 		return
 	case http.MethodDelete:
-		archiveStatusBook(w, r)
+		h.archiveStatusBook(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -76,11 +76,8 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	//Searching for that ID on database:
-	returnedBook, err := h.bookService.GetBook(id) //DOUBTS:
-	//	1) Should handlers.go be calling a function of database.go? Maybe book.go could be between them
-	//  2) main.go has called func NewStore to migrateUp. Does that store variable returned have to be the same
-	//     used here (or in book.go) to acess the methods (search, list, etc) or can we use a different one?
+	//Searching for that ID on Book Service:
+	returnedBook, err := h.bookService.GetBook(id)
 	if err != nil {
 		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
 			log.Println(err)
@@ -124,14 +121,14 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 }
 
 /* Change the status of a book to "archived". */
-func archiveStatusBook(w http.ResponseWriter, r *http.Request) {
+func (h *BookHandler) archiveStatusBook(w http.ResponseWriter, r *http.Request) {
 	id, err := isolateId(w, r)
 	if err != nil {
 		return
 	}
-	archived := true
+	//archived := true
 
-	archivedBook, err := database.ArchiveStatusOnDB(id, archived)
+	archivedBook, err := h.bookService.ArchiveStatusBook(id)
 	if err != nil {
 		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
 			log.Println(err)

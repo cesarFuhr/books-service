@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-type Book struct {
+type Book struct { //MOVE JSON TAGS TO HTTP PACKAGE!!
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	Price     *float32  `json:"price"`
