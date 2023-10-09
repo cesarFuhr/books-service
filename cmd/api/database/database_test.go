@@ -201,7 +201,7 @@ func TestGetBook(t *testing.T) {
 		compareBooks(is, newBook, b)
 
 		// Write the Get Book test here.
-		returnedBook, err := store.SearchById(b.ID)
+		returnedBook, err := store.GetBookByID(b.ID)
 		is.NoErr(err)
 		compareBooks(is, returnedBook, b)
 	})
@@ -210,7 +210,7 @@ func TestGetBook(t *testing.T) {
 		is := is.New(t)
 
 		// Write the Get Book test here.
-		returnedBook, err := store.SearchById(uuid.New())
+		returnedBook, err := store.GetBookByID(uuid.New())
 		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
 	})

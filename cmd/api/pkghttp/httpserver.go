@@ -9,11 +9,11 @@ type ServerConfig struct {
 	Port int
 }
 
-func NewServer(config ServerConfig) *http.Server {
+func NewServer(config ServerConfig, h *BookHandler) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/books", books)
-	mux.HandleFunc("/books/", bookById)
+	mux.HandleFunc("/books/", h.bookById)
 
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),

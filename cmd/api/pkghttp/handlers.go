@@ -17,6 +17,14 @@ import (
 	"github.com/google/uuid"
 )
 
+type BookHandler struct {
+	bookService book.ServiceAPI
+}
+
+func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
+	return &BookHandler{bookService: bookService}
+}
+
 //==========HTTP COMMUNICATION FUNCTIONS:===========
 
 /* Tests the http server connection.  */
@@ -32,11 +40,11 @@ func ping(w http.ResponseWriter, r *http.Request) {
 }
 
 /* Handles a call to /books/(exected id here) and redirects depending on the requested action.  */
-func bookById(w http.ResponseWriter, r *http.Request) {
+func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	switch method {
 	case http.MethodGet:
-		getBookById(w, r)
+		h.getBookById(w, r)
 		return
 	case http.MethodPut:
 		updateBook(w, r)
@@ -63,13 +71,13 @@ func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error)
 }
 
 /* Returns the book with that specific ID. */
-func getBookById(w http.ResponseWriter, r *http.Request) {
+func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 	id, err := isolateId(w, r)
 	if err != nil {
 		return
 	}
 	//Searching for that ID on database:
-	returnedBook, err := database.SearchById(id) //DOUBTS:
+	returnedBook, err := h.bookService.GetBook(id) //DOUBTS:
 	//	1) Should handlers.go be calling a function of database.go? Maybe book.go could be between them
 	//  2) main.go has called func NewStore to migrateUp. Does that store variable returned have to be the same
 	//     used here (or in book.go) to acess the methods (search, list, etc) or can we use a different one?

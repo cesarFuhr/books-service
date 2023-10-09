@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
 	"github.com/books-service/cmd/api/pkghttp"
 
@@ -42,8 +43,11 @@ func run() error {
 		return fmt.Errorf("migrating: %w", err)
 	}
 
+	bookService := book.NewService(store)
+	bookHandler := pkghttp.NewBookHandler(bookService)
+
 	//create and init http server:
-	server := pkghttp.NewServer(pkghttp.ServerConfig{Port: 8080})
+	server := pkghttp.NewServer(pkghttp.ServerConfig{Port: 8080}, bookHandler)
 
 	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

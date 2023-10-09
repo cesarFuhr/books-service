@@ -38,7 +38,8 @@ func ConnectDb(connStr string) (*sql.DB, error) {
 }
 
 func NewStore(db *sql.DB) *Store {
-	return &Store{db: db}
+	CurrentStore := &Store{db: db}
+	return CurrentStore
 }
 
 func MigrationUp(store *Store, path string) error {
@@ -62,7 +63,7 @@ func MigrationUp(store *Store, path string) error {
 }
 
 /* Searches a book in database based on ID and returns it if succeed. */
-func (store *Store) SearchById(id uuid.UUID) (book.Book, error) {
+func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
 	foundRow := store.db.QueryRow(sqlStatement, id)
 	var bookToReturn book.Book
