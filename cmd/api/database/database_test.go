@@ -155,7 +155,7 @@ func TestUpdateBook(t *testing.T) {
 		b.Inventory = toPointer(9)
 		b.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
 
-		updatedBook, err := store.UpdateOnDB(b)
+		updatedBook, err := store.UpdateBook(b)
 		is.NoErr(err)
 		compareBooks(is, updatedBook, b)
 	})
@@ -172,7 +172,7 @@ func TestUpdateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		returnedBook, err := store.UpdateOnDB(nonexistentBook)
+		returnedBook, err := store.UpdateBook(nonexistentBook)
 		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
 	})

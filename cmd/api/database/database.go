@@ -62,24 +62,6 @@ func MigrationUp(store *Store, path string) error {
 	return nil
 }
 
-/* Searches a book in database based on ID and returns it if succeed. */
-func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
-	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
-	foundRow := store.db.QueryRow(sqlStatement, id)
-	var bookToReturn book.Book
-	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("searching by ID: %w", bookerrors.ErrResponseBookNotFound)
-		default:
-			return book.Book{}, fmt.Errorf("searching by ID: %w", err)
-		}
-	}
-
-	return bookToReturn, nil
-}
-
 func (store *Store) CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
@@ -160,27 +142,7 @@ func (store *Store) StoreOnDB(bookEntry book.Book) (book.Book, error) {
 	return bookToReturn, nil
 }
 
-/* Stores the book into the database, checks and returns it if succeed. */
-func (store *Store) UpdateOnDB(bookEntry book.Book) (book.Book, error) {
-	sqlStatement := `
-	UPDATE bookstable 
-	SET name = $2, price = $3, inventory = $4, updated_at = $5
-	WHERE id = $1
-	RETURNING *`
-	updatedRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
-	var bookToReturn book.Book
-	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("updating on db: %w", bookerrors.ErrResponseBookNotFound)
-		default:
-			return book.Book{}, fmt.Errorf("updating on db: %w", err)
-		}
-	}
-
-	return bookToReturn, nil
-}
+//==========BOOK STORING FUNCTIONS:===========
 
 /* Change the status of 'archived' column on database. */
 func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, error) {
@@ -198,6 +160,46 @@ func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, e
 			return book.Book{}, fmt.Errorf("archiving on db: %w", bookerrors.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("archiving on db: %w", err)
+		}
+	}
+
+	return bookToReturn, nil
+}
+
+/* Searches a book in database based on ID and returns it if succeed. */
+func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
+	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
+	foundRow := store.db.QueryRow(sqlStatement, id)
+	var bookToReturn book.Book
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.Book{}, fmt.Errorf("searching by ID: %w", bookerrors.ErrResponseBookNotFound)
+		default:
+			return book.Book{}, fmt.Errorf("searching by ID: %w", err)
+		}
+	}
+
+	return bookToReturn, nil
+}
+
+/* Stores the book into the database, checks and returns it if succeed. */
+func (store *Store) UpdateBook(bookEntry book.Book) (book.Book, error) {
+	sqlStatement := `
+	UPDATE bookstable 
+	SET name = $2, price = $3, inventory = $4, updated_at = $5
+	WHERE id = $1
+	RETURNING *`
+	updatedRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
+	var bookToReturn book.Book
+	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.Book{}, fmt.Errorf("updating on db: %w", bookerrors.ErrResponseBookNotFound)
+		default:
+			return book.Book{}, fmt.Errorf("updating on db: %w", err)
 		}
 	}
 
