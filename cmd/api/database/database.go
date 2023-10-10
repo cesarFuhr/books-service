@@ -62,6 +62,31 @@ func MigrationUp(store *Store, path string) error {
 	return nil
 }
 
+//==========BOOK STORING FUNCTIONS:===========
+
+/* Change the status of 'archived' column on database. */
+func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, error) {
+	sqlStatement := `
+	UPDATE bookstable 
+	SET archived = $2
+	WHERE id = $1
+	RETURNING *`
+	updatedRow := store.db.QueryRow(sqlStatement, id, archived)
+	var bookToReturn book.Book
+	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.Book{}, fmt.Errorf("archiving on db: %w", bookerrors.ErrResponseBookNotFound)
+		default:
+			return book.Book{}, fmt.Errorf("archiving on db: %w", err)
+		}
+	}
+
+	return bookToReturn, nil
+}
+
+/* Counts how many rows in db fit the specified filter parameters. */
 func (store *Store) CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
@@ -82,6 +107,40 @@ func (store *Store) CountRows(name string, minPrice32, maxPrice32 float32, archi
 	}
 
 	return count, nil
+}
+
+/* Stores the book into the database, checks and returns it if succeed. */
+func (store *Store) CreateBook(bookEntry book.Book) (book.Book, error) {
+	sqlStatement := `
+	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING *`
+	createdRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
+	var bookToReturn book.Book
+	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		return book.Book{}, fmt.Errorf("storing on db: %w", err)
+	}
+
+	return bookToReturn, nil
+}
+
+/* Searches a book in database based on ID and returns it if succeed. */
+func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
+	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
+	foundRow := store.db.QueryRow(sqlStatement, id)
+	var bookToReturn book.Book
+	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.Book{}, fmt.Errorf("searching by ID: %w", bookerrors.ErrResponseBookNotFound)
+		default:
+			return book.Book{}, fmt.Errorf("searching by ID: %w", err)
+		}
+	}
+
+	return bookToReturn, nil
 }
 
 /* Returns filtered content of database in a list of books*/
@@ -124,64 +183,6 @@ func (store *Store) ListBooks(name string, minPrice32, maxPrice32 float32, sortB
 	}
 
 	return bookslist, nil
-}
-
-//==========BOOK STORING FUNCTIONS:===========
-
-/* Change the status of 'archived' column on database. */
-func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, error) {
-	sqlStatement := `
-	UPDATE bookstable 
-	SET archived = $2
-	WHERE id = $1
-	RETURNING *`
-	updatedRow := store.db.QueryRow(sqlStatement, id, archived)
-	var bookToReturn book.Book
-	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("archiving on db: %w", bookerrors.ErrResponseBookNotFound)
-		default:
-			return book.Book{}, fmt.Errorf("archiving on db: %w", err)
-		}
-	}
-
-	return bookToReturn, nil
-}
-
-/* Stores the book into the database, checks and returns it if succeed. */
-func (store *Store) CreateBook(bookEntry book.Book) (book.Book, error) {
-	sqlStatement := `
-	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6)
-	RETURNING *`
-	createdRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
-	var bookToReturn book.Book
-	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
-	if err != nil {
-		return book.Book{}, fmt.Errorf("storing on db: %w", err)
-	}
-
-	return bookToReturn, nil
-}
-
-/* Searches a book in database based on ID and returns it if succeed. */
-func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
-	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
-	foundRow := store.db.QueryRow(sqlStatement, id)
-	var bookToReturn book.Book
-	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("searching by ID: %w", bookerrors.ErrResponseBookNotFound)
-		default:
-			return book.Book{}, fmt.Errorf("searching by ID: %w", err)
-		}
-	}
-
-	return bookToReturn, nil
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */

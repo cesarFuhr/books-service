@@ -17,3 +17,4 @@ var ErrResponseQueryPriceInvalidFormat = ErrResponse{104, "query parameter 'pric
 var ErrResponseQuerySortByInvalid = ErrResponse{105, "query parameter 'sort_by' must be: name, price, inventory, created_at or updated_at. 'sort_direction' must be asc or desc."}
 var ErrResponseQueryPageInvalid = ErrResponse{106, "query parameter 'page' must be an int starting in 1. 'page_size' must be an int beetween 1 and 30."}
 var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
+var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}

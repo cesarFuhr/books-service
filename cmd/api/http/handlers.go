@@ -4,14 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
-	"math"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/books-service/cmd/api/book"
-	"github.com/books-service/cmd/api/database"
 	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/google/uuid"
 )
@@ -50,7 +46,7 @@ func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	switch method {
 	case http.MethodGet:
-		getBooks(w, r)
+		h.listBooks(w, r)
 		return
 	case http.MethodPost:
 		h.createBook(w, r)
@@ -137,6 +133,23 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, returnedBook)
 }
 
+/* Returns a list of the stored books. */
+func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	pagedBooks, err := h.bookService.ListBooks(query)
+	if err != nil {
+		if errors.Is(err, bookerrors.ErrResponseFromRespository) {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		responseJSON(w, http.StatusBadRequest, err)
+		return
+	}
+	responseJSON(w, http.StatusOK, pagedBooks)
+}
+
 /* Validates the entry, then updates the asked book. */
 func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 	id, err := isolateId(w, r)
@@ -201,167 +214,4 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-}
-
-/* Returns a list of the stored books. */
-func getBooks(w http.ResponseWriter, r *http.Request) {
-
-	//Extract and adapt query params:
-	//FILTERING PARAMS:
-	query := r.URL.Query()
-
-	name := query.Get("name")
-
-	var minPrice32 float32
-	minPriceStr := query.Get("min_price")
-	if minPriceStr != "" {
-		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
-		if err != nil {
-			responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseQueryPriceInvalidFormat)
-			return
-		}
-		minPrice32 = float32(minPrice64)
-	} else {
-		minPrice32 = 0
-	}
-
-	var maxPrice32 float32
-	maxPriceStr := query.Get("max_price")
-	if maxPriceStr != "" {
-		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
-		if err != nil {
-			responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseQueryPriceInvalidFormat)
-			return
-		}
-		maxPrice32 = float32(maxPrice64)
-	} else {
-		maxPrice32 = 9999.99 //max value to field price on db, set to: numeric(6,2)
-	}
-
-	sortBy, sortDirection, valid := extractOrderParams(query)
-	if !valid {
-		responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseQuerySortByInvalid)
-		return
-	}
-
-	archived := false
-	archivedStr := query.Get("archived")
-	if archivedStr == "true" {
-		archived = true
-	}
-
-	itemsTotal, err := database.CountRows(name, minPrice32, maxPrice32, archived)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	if itemsTotal == 0 {
-		responseJSON(w, http.StatusOK, []book.Book{})
-		return
-	}
-
-	pagesTotal, page, pageSize, err := pagination(query, itemsTotal)
-	if err != nil {
-		responseJSON(w, http.StatusBadRequest, err)
-		return
-	}
-
-	//Ask filtered list to db:
-	returnedBooks, err := database.ListBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	type PagedBooks struct {
-		PageCurrent int         `json:"page_current"`
-		PageTotal   int         `json:"page_total"`
-		PageSize    int         `json:"page_size"`
-		ItemsTotal  int         `json:"items_total"`
-		Results     []book.Book `json:"results"`
-	}
-
-	pageOfBooksList := PagedBooks{
-		PageCurrent: page,
-		PageTotal:   pagesTotal,
-		PageSize:    pageSize,
-		ItemsTotal:  itemsTotal,
-		Results:     returnedBooks,
-	}
-
-	responseJSON(w, http.StatusOK, pageOfBooksList)
-}
-
-/*Validates and prepares the pagination parameters of the query.*/
-func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize int, err error) {
-
-	pageStr := query.Get("page") //Convert page value to int and set default to 1.
-	if pageStr == "" {
-		page = 1
-	} else {
-		page, err = strconv.Atoi(pageStr)
-		if err != nil {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
-		}
-		if page <= 0 {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
-		}
-	}
-
-	pageSizeStr := query.Get("page_size") //Convert page_size value to int and set default to 10.
-	if pageSizeStr == "" {
-		pageSize = 10
-	} else {
-		pageSize, err = strconv.Atoi(pageSizeStr)
-		if err != nil {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
-		}
-		if !(0 < pageSize && pageSize < 31) {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
-		}
-	}
-
-	pagesTotal = int(math.Ceil(float64(itemsTotal) / float64(pageSize)))
-	if page > pagesTotal {
-		return 0, 0, 0, bookerrors.ErrResponseQueryPageOutOfRange
-	}
-
-	return pagesTotal, page, pageSize, nil
-}
-
-/*Validates and prepares the ordering parameters of the query.*/
-func extractOrderParams(query url.Values) (sortBy string, sortDirection string, valid bool) {
-	sortDirection = query.Get("sort_direction")
-	switch sortDirection {
-	case "":
-		sortDirection = "asc"
-	case "asc":
-		break
-	case "desc":
-		break
-	default:
-		return sortBy, sortDirection, false
-	}
-
-	sortBy = query.Get("sort_by")
-	switch sortBy {
-	case "":
-		sortBy = "name"
-	case "name":
-		break
-	case "price":
-		break
-	case "inventory":
-		break
-	case "created_at":
-		break
-	case "updated_at":
-		break
-	default:
-		return sortBy, sortDirection, false
-	}
-
-	return sortBy, sortDirection, true
 }
