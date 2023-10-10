@@ -12,7 +12,7 @@ type ServerConfig struct {
 func NewServer(config ServerConfig, h *BookHandler) *http.Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", ping)
-	mux.HandleFunc("/books", books)
+	mux.HandleFunc("/books", h.books)
 	mux.HandleFunc("/books/", h.bookById)
 
 	server := http.Server{

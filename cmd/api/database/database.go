@@ -126,22 +126,6 @@ func (store *Store) ListBooks(name string, minPrice32, maxPrice32 float32, sortB
 	return bookslist, nil
 }
 
-/* Stores the book into the database, checks and returns it if succeed. */
-func (store *Store) StoreOnDB(bookEntry book.Book) (book.Book, error) {
-	sqlStatement := `
-	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6)
-	RETURNING *`
-	createdRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
-	var bookToReturn book.Book
-	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
-	if err != nil {
-		return book.Book{}, fmt.Errorf("storing on db: %w", err)
-	}
-
-	return bookToReturn, nil
-}
-
 //==========BOOK STORING FUNCTIONS:===========
 
 /* Change the status of 'archived' column on database. */
@@ -161,6 +145,22 @@ func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, e
 		default:
 			return book.Book{}, fmt.Errorf("archiving on db: %w", err)
 		}
+	}
+
+	return bookToReturn, nil
+}
+
+/* Stores the book into the database, checks and returns it if succeed. */
+func (store *Store) CreateBook(bookEntry book.Book) (book.Book, error) {
+	sqlStatement := `
+	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING *`
+	createdRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
+	var bookToReturn book.Book
+	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
+	if err != nil {
+		return book.Book{}, fmt.Errorf("storing on db: %w", err)
 	}
 
 	return bookToReturn, nil

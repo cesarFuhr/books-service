@@ -70,7 +70,7 @@ func TestCreateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.StoreOnDB(b)
+		newBook, err := store.CreateBook(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 	})
@@ -94,7 +94,7 @@ func TestArchiveStatusBook(t *testing.T) {
 			Archived:  false,
 		}
 
-		newBook, err := store.StoreOnDB(b)
+		newBook, err := store.CreateBook(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -145,7 +145,7 @@ func TestUpdateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.StoreOnDB(b)
+		newBook, err := store.CreateBook(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -196,7 +196,7 @@ func TestGetBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.StoreOnDB(b)
+		newBook, err := store.CreateBook(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -245,7 +245,7 @@ func TestListBooks(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.StoreOnDB(b)
+		newBook, err := store.CreateBook(b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 		testBookslist = append(testBookslist, b)
