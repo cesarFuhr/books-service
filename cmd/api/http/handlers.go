@@ -1,4 +1,4 @@
-package pkghttp
+package http
 
 import (
 	"encoding/json"
@@ -25,21 +25,9 @@ func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
 	return &BookHandler{bookService: bookService}
 }
 
-//==========HTTP COMMUNICATION FUNCTIONS:===========
+//==========HTTP ADDRESSERS:===========
 
-/* Tests the http server connection.  */
-func ping(w http.ResponseWriter, r *http.Request) {
-	method := r.Method
-	if method == http.MethodGet {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	} else {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-}
-
-/* Handles a call to /books/(expected id here) and redirects depending on the requested action.  */
+/* Addresses a call to "/books/(expected id here)" according to the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
 	switch method {
@@ -58,16 +46,44 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/* Isolates the ID from the URL. */
-func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error) {
-	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
-	id, err = uuid.Parse(justId)
-	if err != nil {
-		log.Println(err)
-		responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseIdInvalidFormat)
-		return id, err
+/* Addresses a call to "/books" according to the requested action.  */
+func books(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	switch method {
+	case http.MethodGet:
+		getBooks(w, r)
+		return
+	case http.MethodPost:
+		createBook(w, r)
+		return
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
-	return id, nil
+}
+
+//==========HTTP HANDLERS:===========
+
+/* Change the status of a book to "archived". */
+func (h *BookHandler) archiveStatusBook(w http.ResponseWriter, r *http.Request) {
+	id, err := isolateId(w, r)
+	if err != nil {
+		return
+	}
+
+	archivedBook, err := h.bookService.ArchiveStatusBook(id)
+	if err != nil {
+		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, archivedBook)
 }
 
 /* Returns the book with that specific ID. */
@@ -92,20 +108,18 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, returnedBook)
 }
 
-/* Handles a call to /books and redirects depending on the requested action.  */
-func books(w http.ResponseWriter, r *http.Request) {
-	method := r.Method
-	switch method {
-	case http.MethodGet:
-		getBooks(w, r)
-		return
-	case http.MethodPost:
-		createBook(w, r)
-		return
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+//==========AUXILIARY FUNCTIONS:===========
+
+/* Isolates the ID from the URL. */
+func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error) {
+	justId, _ := strings.CutPrefix(r.URL.Path, "/books/")
+	id, err = uuid.Parse(justId)
+	if err != nil {
+		log.Println(err)
+		responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseIdInvalidFormat)
+		return id, err
 	}
+	return id, nil
 }
 
 /*Writes a JSON response into a http.ResponseWriter. */
@@ -118,29 +132,6 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-}
-
-/* Change the status of a book to "archived". */
-func (h *BookHandler) archiveStatusBook(w http.ResponseWriter, r *http.Request) {
-	id, err := isolateId(w, r)
-	if err != nil {
-		return
-	}
-	//archived := true
-
-	archivedBook, err := h.bookService.ArchiveStatusBook(id)
-	if err != nil {
-		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
-			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	responseJSON(w, http.StatusOK, archivedBook)
 }
 
 /* Verifies if all fields are correctly filled and update the book in the db. */

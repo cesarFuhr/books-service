@@ -9,7 +9,7 @@ import (
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
-	"github.com/books-service/cmd/api/pkghttp"
+	bookhttp "github.com/books-service/cmd/api/http"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -44,10 +44,10 @@ func run() error {
 	}
 
 	bookService := book.NewService(store)
-	bookHandler := pkghttp.NewBookHandler(bookService)
+	bookHandler := bookhttp.NewBookHandler(bookService)
 
 	//create and init http server:
-	server := pkghttp.NewServer(pkghttp.ServerConfig{Port: 8080}, bookHandler)
+	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
 	err = server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

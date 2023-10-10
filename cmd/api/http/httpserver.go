@@ -1,4 +1,4 @@
-package pkghttp
+package http
 
 import (
 	"fmt"
@@ -20,4 +20,16 @@ func NewServer(config ServerConfig, h *BookHandler) *http.Server {
 		Handler: mux,
 	}
 	return &server
+}
+
+/* Tests the http server connection.  */
+func ping(w http.ResponseWriter, r *http.Request) {
+	method := r.Method
+	if method == http.MethodGet {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	} else {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
 }
