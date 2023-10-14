@@ -62,10 +62,8 @@ func MigrationUp(store *Store, path string) error {
 	return nil
 }
 
-//==========BOOK STORING FUNCTIONS:===========
-
 /* Change the status of 'archived' column on database. */
-func (store *Store) ArchiveStatusBook(id uuid.UUID, archived bool) (book.Book, error) {
+func (store *Store) SetBookArchiveStatus(id uuid.UUID, archived bool) (book.Book, error) {
 	sqlStatement := `
 	UPDATE bookstable 
 	SET archived = $2

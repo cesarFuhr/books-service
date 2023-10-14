@@ -10,7 +10,7 @@ import (
 )
 
 type ServiceAPI interface {
-	ArchiveStatusBook(id uuid.UUID) (Book, error)
+	ArchiveBook(id uuid.UUID) (Book, error)
 	CreateBook(bookEntry Book) (Book, error)
 	GetBook(id uuid.UUID) (Book, error)
 	ListBooks(query url.Values) (PagedBooks, error)
@@ -18,7 +18,7 @@ type ServiceAPI interface {
 }
 
 type Repository interface {
-	ArchiveStatusBook(id uuid.UUID, archived bool) (Book, error)
+	SetBookArchiveStatus(id uuid.UUID, archived bool) (Book, error)
 	CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error)
 	CreateBook(bookEntry Book) (Book, error)
 	GetBookByID(id uuid.UUID) (Book, error)
@@ -34,9 +34,9 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) ArchiveStatusBook(id uuid.UUID) (Book, error) {
+func (s *Service) ArchiveBook(id uuid.UUID) (Book, error) {
 	archived := true
-	return s.repo.ArchiveStatusBook(id, archived)
+	return s.repo.SetBookArchiveStatus(id, archived)
 }
 
 func (s *Service) CreateBook(bookEntry Book) (Book, error) {

@@ -20,8 +20,6 @@ func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
 	return &BookHandler{bookService: bookService}
 }
 
-//==========HTTP ADDRESSERS:===========
-
 /* Addresses a call to "/books/(expected id here)" according to the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 	method := r.Method
@@ -33,7 +31,7 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 		h.updateBook(w, r)
 		return
 	case http.MethodDelete:
-		h.archiveStatusBook(w, r)
+		h.archiveBook(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -57,16 +55,14 @@ func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//==========HTTP HANDLERS:===========
-
 /* Change the status of a book to "archived". */
-func (h *BookHandler) archiveStatusBook(w http.ResponseWriter, r *http.Request) {
+func (h *BookHandler) archiveBook(w http.ResponseWriter, r *http.Request) {
 	id, err := isolateId(w, r)
 	if err != nil {
 		return
 	}
 
-	archivedBook, err := h.bookService.ArchiveStatusBook(id)
+	archivedBook, err := h.bookService.ArchiveBook(id)
 	if err != nil {
 		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
 			log.Println(err)
@@ -189,8 +185,6 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 
 	responseJSON(w, http.StatusOK, updatedBook)
 }
-
-//==========AUXILIARY FUNCTIONS:===========
 
 /* Isolates the ID from the URL. */
 func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error) {

@@ -1,5 +1,3 @@
-//go test ./cmd/api/database  -> to run just this test
-
 package database_test
 
 import (
@@ -99,7 +97,7 @@ func TestArchiveStatusBook(t *testing.T) {
 		compareBooks(is, newBook, b)
 
 		//Archiving the created book.
-		archivedBook, err := store.ArchiveStatusBook(b.ID, true)
+		archivedBook, err := store.SetBookArchiveStatus(b.ID, true)
 		is.NoErr(err)
 
 		//Changing the status of 'arquived' field of local book to be compare afterwards.
@@ -121,7 +119,7 @@ func TestArchiveStatusBook(t *testing.T) {
 			Archived:  false,
 		}
 
-		archivedBook, err := store.ArchiveStatusBook(nonexistentBook.ID, true)
+		archivedBook, err := store.SetBookArchiveStatus(nonexistentBook.ID, true)
 		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
 		compareBooks(is, archivedBook, book.Book{})
 	})
@@ -362,7 +360,7 @@ func TestListBooks(t *testing.T) {
 	t.Run("List not archived books without errors", func(t *testing.T) {
 		is := is.New(t)
 		//Archiving one book of the list
-		archivedBook, err := store.ArchiveStatusBook(testBookslist[0].ID, true)
+		archivedBook, err := store.SetBookArchiveStatus(testBookslist[0].ID, true)
 		is.NoErr(err)
 		is.True(archivedBook.Archived == true)
 
