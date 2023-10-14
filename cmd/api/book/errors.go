@@ -1,4 +1,4 @@
-package errors
+package book
 
 type ErrResponse struct {
 	Code    int    `json:"error_code"`

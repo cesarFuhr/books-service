@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"time"
 
-	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/google/uuid"
 )
 
@@ -23,13 +22,13 @@ type Book struct { //MOVE JSON TAGS TO HTTP PACKAGE!!
 /* Verifies if all entry fields are filled and returns a warning message if so. */
 func FilledFields(bookEntry Book) error {
 	if bookEntry.Name == "" {
-		return bookerrors.ErrResponseBookEntryBlankFileds
+		return ErrResponseBookEntryBlankFileds
 	}
 	if bookEntry.Price == nil {
-		return bookerrors.ErrResponseBookEntryBlankFileds
+		return ErrResponseBookEntryBlankFileds
 	}
 	if bookEntry.Inventory == nil {
-		return bookerrors.ErrResponseBookEntryBlankFileds
+		return ErrResponseBookEntryBlankFileds
 	}
 
 	return nil
@@ -79,10 +78,10 @@ func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize in
 	} else {
 		page, err = strconv.Atoi(pageStr)
 		if err != nil {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, ErrResponseQueryPageInvalid
 		}
 		if page <= 0 {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, ErrResponseQueryPageInvalid
 		}
 	}
 
@@ -92,16 +91,16 @@ func pagination(query url.Values, itemsTotal int) (pagesTotal, page, pageSize in
 	} else {
 		pageSize, err = strconv.Atoi(pageSizeStr)
 		if err != nil {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, ErrResponseQueryPageInvalid
 		}
 		if !(0 < pageSize && pageSize < 31) {
-			return 0, 0, 0, bookerrors.ErrResponseQueryPageInvalid
+			return 0, 0, 0, ErrResponseQueryPageInvalid
 		}
 	}
 
 	pagesTotal = int(math.Ceil(float64(itemsTotal) / float64(pageSize)))
 	if page > pagesTotal {
-		return 0, 0, 0, bookerrors.ErrResponseQueryPageOutOfRange
+		return 0, 0, 0, ErrResponseQueryPageOutOfRange
 	}
 
 	return pagesTotal, page, pageSize, nil

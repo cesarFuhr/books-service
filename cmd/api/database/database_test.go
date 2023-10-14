@@ -11,7 +11,6 @@ import (
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
-	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/google/uuid"
@@ -120,7 +119,7 @@ func TestArchiveStatusBook(t *testing.T) {
 		}
 
 		archivedBook, err := store.SetBookArchiveStatus(nonexistentBook.ID, true)
-		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
+		is.True(errors.Is(err, book.ErrResponseBookNotFound))
 		compareBooks(is, archivedBook, book.Book{})
 	})
 
@@ -171,7 +170,7 @@ func TestUpdateBook(t *testing.T) {
 		}
 
 		returnedBook, err := store.UpdateBook(nonexistentBook)
-		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
+		is.True(errors.Is(err, book.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
 	})
 }
@@ -209,7 +208,7 @@ func TestGetBook(t *testing.T) {
 
 		// Write the Get Book test here.
 		returnedBook, err := store.GetBookByID(uuid.New())
-		is.True(errors.Is(err, bookerrors.ErrResponseBookNotFound))
+		is.True(errors.Is(err, book.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
 	})
 }

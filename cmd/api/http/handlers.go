@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/books-service/cmd/api/book"
-	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/google/uuid"
 )
 
@@ -64,7 +63,7 @@ func (h *BookHandler) archiveBook(w http.ResponseWriter, r *http.Request) {
 
 	archivedBook, err := h.bookService.ArchiveBook(id)
 	if err != nil {
-		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
+		if errors.Is(err, book.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -83,9 +82,9 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
-		errR := bookerrors.ErrResponse{
-			Code:    bookerrors.ErrResponseBookEntryInvalidJSON.Code,
-			Message: bookerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+		errR := book.ErrResponse{
+			Code:    book.ErrResponseBookEntryInvalidJSON.Code,
+			Message: book.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
@@ -116,7 +115,7 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 	//Searching for that ID on Book Service:
 	returnedBook, err := h.bookService.GetBook(id)
 	if err != nil {
-		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
+		if errors.Is(err, book.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -135,7 +134,7 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 
 	pagedBooks, err := h.bookService.ListBooks(query)
 	if err != nil {
-		if errors.Is(err, bookerrors.ErrResponseFromRespository) {
+		if errors.Is(err, book.ErrResponseFromRespository) {
 			log.Println(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -157,9 +156,9 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
-		errR := bookerrors.ErrResponse{
-			Code:    bookerrors.ErrResponseBookEntryInvalidJSON.Code,
-			Message: bookerrors.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+		errR := book.ErrResponse{
+			Code:    book.ErrResponseBookEntryInvalidJSON.Code,
+			Message: book.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
@@ -173,7 +172,7 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 
 	updatedBook, err := h.bookService.UpdateBook(bookEntry, id) //Update the stored book
 	if err != nil {
-		if errors.Is(err, bookerrors.ErrResponseBookNotFound) {
+		if errors.Is(err, book.ErrResponseBookNotFound) {
 			log.Println(err)
 			w.WriteHeader(http.StatusNotFound)
 			return
@@ -192,7 +191,7 @@ func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error)
 	id, err = uuid.Parse(justId)
 	if err != nil {
 		log.Println(err)
-		responseJSON(w, http.StatusBadRequest, bookerrors.ErrResponseIdInvalidFormat)
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseIdInvalidFormat)
 		return id, err
 	}
 	return id, nil

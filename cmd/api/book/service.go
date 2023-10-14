@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/google/uuid"
 )
 
@@ -66,7 +65,7 @@ func (s *Service) ListBooks(query url.Values) (PagedBooks, error) {
 	if minPriceStr != "" {
 		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
 		if err != nil {
-			return PagedBooks{}, bookerrors.ErrResponseQueryPriceInvalidFormat
+			return PagedBooks{}, ErrResponseQueryPriceInvalidFormat
 		}
 		minPrice32 = float32(minPrice64)
 	} else {
@@ -78,7 +77,7 @@ func (s *Service) ListBooks(query url.Values) (PagedBooks, error) {
 	if maxPriceStr != "" {
 		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
 		if err != nil {
-			return PagedBooks{}, bookerrors.ErrResponseQueryPriceInvalidFormat
+			return PagedBooks{}, ErrResponseQueryPriceInvalidFormat
 		}
 		maxPrice32 = float32(maxPrice64)
 	} else {
@@ -87,7 +86,7 @@ func (s *Service) ListBooks(query url.Values) (PagedBooks, error) {
 
 	sortBy, sortDirection, valid := extractOrderParams(query)
 	if !valid {
-		return PagedBooks{}, bookerrors.ErrResponseQuerySortByInvalid
+		return PagedBooks{}, ErrResponseQuerySortByInvalid
 	}
 
 	archived := false
@@ -98,9 +97,9 @@ func (s *Service) ListBooks(query url.Values) (PagedBooks, error) {
 
 	itemsTotal, err := s.repo.CountRows(name, minPrice32, maxPrice32, archived)
 	if err != nil {
-		errRepo := bookerrors.ErrResponse{
-			Code:    bookerrors.ErrResponseFromRespository.Code,
-			Message: bookerrors.ErrResponseFromRespository.Message + err.Error(),
+		errRepo := ErrResponse{
+			Code:    ErrResponseFromRespository.Code,
+			Message: ErrResponseFromRespository.Message + err.Error(),
 		}
 		return PagedBooks{}, errRepo
 	}
@@ -123,9 +122,9 @@ func (s *Service) ListBooks(query url.Values) (PagedBooks, error) {
 	//Ask filtered list to db:
 	returnedBooks, err := s.repo.ListBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
 	if err != nil {
-		errRepo := bookerrors.ErrResponse{
-			Code:    bookerrors.ErrResponseFromRespository.Code,
-			Message: bookerrors.ErrResponseFromRespository.Message + err.Error(),
+		errRepo := ErrResponse{
+			Code:    ErrResponseFromRespository.Code,
+			Message: ErrResponseFromRespository.Message + err.Error(),
 		}
 		return PagedBooks{}, errRepo
 	}

@@ -6,7 +6,6 @@ import (
 	"log"
 
 	"github.com/books-service/cmd/api/book"
-	bookerrors "github.com/books-service/cmd/api/errors"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/google/uuid"
@@ -75,7 +74,7 @@ func (store *Store) SetBookArchiveStatus(id uuid.UUID, archived bool) (book.Book
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("archiving on db: %w", bookerrors.ErrResponseBookNotFound)
+			return book.Book{}, fmt.Errorf("archiving on db: %w", book.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("archiving on db: %w", err)
 		}
@@ -132,7 +131,7 @@ func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("searching by ID: %w", bookerrors.ErrResponseBookNotFound)
+			return book.Book{}, fmt.Errorf("searching by ID: %w", book.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("searching by ID: %w", err)
 		}
@@ -196,7 +195,7 @@ func (store *Store) UpdateBook(bookEntry book.Book) (book.Book, error) {
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Book{}, fmt.Errorf("updating on db: %w", bookerrors.ErrResponseBookNotFound)
+			return book.Book{}, fmt.Errorf("updating on db: %w", book.ErrResponseBookNotFound)
 		default:
 			return book.Book{}, fmt.Errorf("updating on db: %w", err)
 		}
