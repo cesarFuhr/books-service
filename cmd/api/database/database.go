@@ -83,29 +83,6 @@ func (store *Store) SetBookArchiveStatus(id uuid.UUID, archived bool) (book.Book
 	return bookToReturn, nil
 }
 
-/* Counts how many rows in db fit the specified filter parameters. */
-func (store *Store) CountRows(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
-	if name != "" {
-		name = fmt.Sprint("%", name, "%")
-	} else {
-		name = "%"
-	}
-
-	sqlStatement := `SELECT COUNT(*) FROM bookstable 
-	WHERE name ILIKE $1
-	AND (archived = $4 OR archived = FALSE)
-	AND price BETWEEN $2 AND $3;`
-
-	row := store.db.QueryRow(sqlStatement, name, minPrice32, maxPrice32, archived)
-	var count int
-	err := row.Scan(&count)
-	if err != nil {
-		return count, fmt.Errorf("counting books from db: %w", err)
-	}
-
-	return count, nil
-}
-
 /* Stores the book into the database, checks and returns it if succeed. */
 func (store *Store) CreateBook(bookEntry book.Book) (book.Book, error) {
 	sqlStatement := `
@@ -124,7 +101,9 @@ func (store *Store) CreateBook(bookEntry book.Book) (book.Book, error) {
 
 /* Searches a book in database based on ID and returns it if succeed. */
 func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
-	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived FROM bookstable WHERE id=$1;`
+	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived
+	FROM bookstable 
+	WHERE id=$1;`
 	foundRow := store.db.QueryRow(sqlStatement, id)
 	var bookToReturn book.Book
 	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
@@ -202,4 +181,27 @@ func (store *Store) UpdateBook(bookEntry book.Book) (book.Book, error) {
 	}
 
 	return bookToReturn, nil
+}
+
+/* Counts how many rows in db fit the specified filter parameters. */
+func (store *Store) ListBooksTotals(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
+	if name != "" {
+		name = fmt.Sprint("%", name, "%")
+	} else {
+		name = "%"
+	}
+
+	sqlStatement := `SELECT COUNT(*) FROM bookstable 
+	WHERE name ILIKE $1
+	AND (archived = $4 OR archived = FALSE)
+	AND price BETWEEN $2 AND $3;`
+
+	row := store.db.QueryRow(sqlStatement, name, minPrice32, maxPrice32, archived)
+	var count int
+	err := row.Scan(&count)
+	if err != nil {
+		return count, fmt.Errorf("counting books from db: %w", err)
+	}
+
+	return count, nil
 }

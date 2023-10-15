@@ -252,7 +252,7 @@ func TestListBooks(t *testing.T) {
 		is := is.New(t)
 
 		//Asking all books on the list. Expected 30 books on page 1.
-		itemsTotal, err := store.CountRows("", 0.00, 9999.99, true)
+		itemsTotal, err := store.ListBooksTotals("", 0.00, 9999.99, true)
 		is.NoErr(err)
 		is.True(itemsTotal == 30)
 		returnedBooks, err := store.ListBooks("", 0.00, 9999.99, "name", "asc", true, 1, 30)
@@ -267,7 +267,7 @@ func TestListBooks(t *testing.T) {
 
 		//Asking 10 books of the list each time.
 		for p := 1; p <= 3; p++ {
-			itemsTotal, err := store.CountRows("", 0.00, 9999.99, true)
+			itemsTotal, err := store.ListBooksTotals("", 0.00, 9999.99, true)
 			is.NoErr(err)
 			is.True(itemsTotal == 30)
 			returnedBooks, err := store.ListBooks("", 0.00, 9999.99, "name", "asc", true, p, 10)

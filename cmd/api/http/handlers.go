@@ -5,6 +5,8 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/books-service/cmd/api/book"
@@ -132,7 +134,53 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 
-	pagedBooks, err := h.bookService.ListBooks(query)
+	name := query.Get("name")
+
+	var minPrice32 float32
+	minPriceStr := query.Get("min_price")
+	if minPriceStr != "" {
+		minPrice64, err := strconv.ParseFloat(minPriceStr, 32)
+		if err != nil {
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPriceInvalidFormat)
+			return
+		}
+		minPrice32 = float32(minPrice64)
+	} else {
+		minPrice32 = 0
+	}
+
+	var maxPrice32 float32
+	maxPriceStr := query.Get("max_price")
+	if maxPriceStr != "" {
+		maxPrice64, err := strconv.ParseFloat(maxPriceStr, 32)
+		if err != nil {
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPriceInvalidFormat)
+			return
+		}
+		maxPrice32 = float32(maxPrice64)
+	} else {
+		maxPrice32 = book.PriceMax
+	}
+
+	sortBy, sortDirection, valid := extractOrderParams(query)
+	if !valid {
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseQuerySortByInvalid)
+		return
+	}
+
+	archived := false
+	archivedStr := query.Get("archived")
+	if archivedStr == "true" {
+		archived = true
+	}
+
+	page, pageSize, valid := extractPageParams(query)
+	if !valid {
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageInvalid)
+		return
+	}
+
+	pagedBooks, err := h.bookService.ListBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
 	if err != nil {
 		if errors.Is(err, book.ErrResponseFromRespository) {
 			log.Println(err)
@@ -207,4 +255,71 @@ func responseJSON(w http.ResponseWriter, status int, body any) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+}
+
+/*Validates and prepares the ordering parameters of the query.*/
+func extractOrderParams(query url.Values) (sortBy string, sortDirection string, valid bool) {
+	sortDirection = query.Get("sort_direction")
+	switch sortDirection {
+	case "":
+		sortDirection = "asc"
+	case "asc":
+		break
+	case "desc":
+		break
+	default:
+		return sortBy, sortDirection, false
+	}
+
+	sortBy = query.Get("sort_by")
+	switch sortBy {
+	case "":
+		sortBy = "name"
+	case "name":
+		break
+	case "price":
+		break
+	case "inventory":
+		break
+	case "created_at":
+		break
+	case "updated_at":
+		break
+	default:
+		return sortBy, sortDirection, false
+	}
+
+	return sortBy, sortDirection, true
+}
+
+/*Validates and prepares the extractPageParams parameters of the query.*/
+func extractPageParams(query url.Values) (page, pageSize int, valid bool) {
+	var err error
+	pageStr := query.Get("page") //Convert page value to int and set default to 1.
+	if pageStr == "" {
+		page = 1
+	} else {
+		page, err = strconv.Atoi(pageStr)
+		if err != nil {
+			return 0, 0, false
+		}
+		if page <= 0 {
+			return 0, 0, false
+		}
+	}
+
+	pageSizeStr := query.Get("page_size") //Convert page_size value to int and set default to 10.
+	if pageSizeStr == "" {
+		pageSize = 10
+	} else {
+		pageSize, err = strconv.Atoi(pageSizeStr)
+		if err != nil {
+			return 0, 0, false
+		}
+		if !(0 < pageSize && pageSize < 31) {
+			return 0, 0, false
+		}
+	}
+
+	return page, pageSize, true
 }

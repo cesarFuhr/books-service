@@ -27,7 +27,7 @@ func main() {
 
 func run() error {
 	//connect to db:
-	connStr := os.Getenv("DATABASE_URL") //I'M STILL CONFUSED ABOUT THAT. IN DATABASE_TEST WE CHANGED THE ENV BY A LITERAL
+	connStr := os.Getenv("DATABASE_URL")
 	dbObject, err := database.ConnectDb(connStr)
 	if err != nil {
 		return fmt.Errorf("connecting with db: %w", err)

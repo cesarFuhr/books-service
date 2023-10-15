@@ -4,8 +4,8 @@ up:
 down:
 	docker compose down
 
-test: test-env-up	
-	go test -p=1 ./... 
+test: test-env-up
+	go test -p=1 ./...
 
 test-env-up:
 	docker compose -f docker-compose.test.yml up -d
