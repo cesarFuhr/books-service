@@ -29,14 +29,15 @@ var sqlDB *sql.DB
 func TestMain(m *testing.M) {
 	// Setting up the database for tests.
 	var err error
-	sqlDB, err = database.ConnectDb("postgres://root:root@localhost:5432/booksdb?sslmode=disable")
+	connStr := os.Getenv("DATABASE_URL")
+	sqlDB, err = database.ConnectDb(connStr)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	store = database.NewStore(sqlDB)
-
-	err = database.MigrationUp(store, "../../../migrations")
+	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
+	err = database.MigrationUp(store, path)
 	if err != nil {
 		if !errors.Is(err, migrate.ErrNoChange) {
 			log.Fatalln(err)
