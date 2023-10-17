@@ -18,17 +18,6 @@ type Book struct { //IS IT POSSIBLE TO MOVE JSON TAGS TO HTTP PACKAGE??
 	Archived  bool      `json:"archived"`
 }
 
-type ListBooksRequest struct {
-	Name          string
-	MinPrice      float32
-	MaxPrice      float32
-	SortBy        string
-	SortDirection string
-	Archived      bool
-	Page          int
-	PageSize      int
-}
-
 /* Verifies if all entry fields are filled and returns a warning message if so. */
 func FilledFields(bookEntry Book) error {
 	if bookEntry.Name == "" {

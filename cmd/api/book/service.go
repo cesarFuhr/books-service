@@ -56,6 +56,17 @@ type PagedBooks struct {
 	Results     []Book `json:"results"`
 }
 
+type ListBooksRequest struct {
+	Name          string
+	MinPrice      float32
+	MaxPrice      float32
+	SortBy        string
+	SortDirection string
+	Archived      bool
+	Page          int
+	PageSize      int
+}
+
 func (s *Service) ListBooks(params ListBooksRequest) (PagedBooks, error) {
 	itemsTotal, err := s.repo.ListBooksTotals(params.Name, params.MinPrice, params.MaxPrice, params.Archived)
 	if err != nil {
