@@ -180,7 +180,18 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pagedBooks, err := h.bookService.ListBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
+	params := book.ListBooksRequest{
+		Name:          name,
+		MinPrice:      minPrice32,
+		MaxPrice:      maxPrice32,
+		SortBy:        sortBy,
+		SortDirection: sortDirection,
+		Archived:      archived,
+		Page:          page,
+		PageSize:      pageSize,
+	}
+
+	pagedBooks, err := h.bookService.ListBooks(params)
 	if err != nil {
 		if errors.Is(err, book.ErrResponseFromRespository) {
 			log.Println(err)

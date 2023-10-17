@@ -12,6 +12,3 @@ test-env-up:
 
 test-env-down:
 	docker compose -f docker-compose.test.yml down
-
-
- 

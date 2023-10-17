@@ -11,7 +11,7 @@ type ServiceAPI interface {
 	ArchiveBook(id uuid.UUID) (Book, error)
 	CreateBook(bookEntry Book) (Book, error)
 	GetBook(id uuid.UUID) (Book, error)
-	ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) (PagedBooks, error)
+	ListBooks(params ListBooksRequest) (PagedBooks, error)
 	UpdateBook(bookEntry Book, id uuid.UUID) (Book, error)
 }
 
@@ -56,8 +56,8 @@ type PagedBooks struct {
 	Results     []Book `json:"results"`
 }
 
-func (s *Service) ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) (PagedBooks, error) {
-	itemsTotal, err := s.repo.ListBooksTotals(name, minPrice32, maxPrice32, archived)
+func (s *Service) ListBooks(params ListBooksRequest) (PagedBooks, error) {
+	itemsTotal, err := s.repo.ListBooksTotals(params.Name, params.MinPrice, params.MaxPrice, params.Archived)
 	if err != nil {
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
@@ -76,13 +76,13 @@ func (s *Service) ListBooks(name string, minPrice32, maxPrice32 float32, sortBy,
 		return noBooks, nil
 	}
 
-	pagesTotal, err := pagination(page, pageSize, itemsTotal)
+	pagesTotal, err := pagination(params.Page, params.PageSize, itemsTotal)
 	if err != nil {
 		return PagedBooks{}, err
 	}
 
 	//Ask filtered list to db:
-	returnedBooks, err := s.repo.ListBooks(name, minPrice32, maxPrice32, sortBy, sortDirection, archived, page, pageSize)
+	returnedBooks, err := s.repo.ListBooks(params.Name, params.MinPrice, params.MaxPrice, params.SortBy, params.SortDirection, params.Archived, params.Page, params.PageSize)
 	if err != nil {
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
@@ -92,9 +92,9 @@ func (s *Service) ListBooks(name string, minPrice32, maxPrice32 float32, sortBy,
 	}
 
 	pageOfBooksList := PagedBooks{
-		PageCurrent: page,
+		PageCurrent: params.Page,
 		PageTotal:   pagesTotal,
-		PageSize:    pageSize,
+		PageSize:    params.PageSize,
 		ItemsTotal:  itemsTotal,
 		Results:     returnedBooks,
 	}
