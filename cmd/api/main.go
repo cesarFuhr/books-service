@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
@@ -49,9 +53,23 @@ func run() error {
 	//create and init http server:
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
-	err = server.ListenAndServe()
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return fmt.Errorf("unexpected http server error: %w", err)
+	go func() (err error) {
+		err = server.ListenAndServe()
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("unexpected http server error: %w", err)
+		}
+		return nil
+	}()
+
+	sc := make(chan os.Signal, 1)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM)
+	<-sc
+
+	ctx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second) //HOW MUCH TIME MAKE SENSE FOR US??
+	defer shutdownRelease()
+	if err := server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("HTTP shutdown error: %w", err)
 	}
-	return nil
+	log.Println("Graceful shutdown complete.")
+	return err
 }
