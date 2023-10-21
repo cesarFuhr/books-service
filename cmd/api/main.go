@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -53,23 +54,32 @@ func run() error {
 	//create and init http server:
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
-	go func() (err error) {
-		err = server.ListenAndServe()
+	go func() {
+		err := server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			return fmt.Errorf("unexpected http server error: %w", err)
+			log.Printf("unexpected http server error: %v", err)
 		}
-		return nil
+		log.Println("stopped serving new requests.")
 	}()
 
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM)
 	<-sc
 
-	ctx, shutdownRelease := context.WithTimeout(context.Background(), 10*time.Second) //HOW MUCH TIME MAKE SENSE FOR US??
-	defer shutdownRelease()
+	deadline := 10
+	deadlineStr := os.Getenv("DEADLINE")
+	if deadlineStr != "" {
+		deadline, err = strconv.Atoi(deadlineStr)
+		if err != nil {
+			return fmt.Errorf("getting deadline from env: %w", err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(deadline)*time.Second)
+	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("HTTP shutdown error: %w", err)
 	}
 	log.Println("Graceful shutdown complete.")
-	return err
+	return nil
 }
