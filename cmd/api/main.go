@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
@@ -66,16 +65,16 @@ func run() error {
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM)
 	<-sc
 
-	deadline := 10
-	deadlineStr := os.Getenv("DEADLINE")
-	if deadlineStr != "" {
-		deadline, err = strconv.Atoi(deadlineStr)
+	timeout := time.Duration(10) * time.Second
+	timeoutStr := os.Getenv("SERVICE_SHUTDOWN_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	if timeoutStr != "" {
+		timeout, err = time.ParseDuration(timeoutStr)
 		if err != nil {
-			return fmt.Errorf("getting deadline from env: %w", err)
+			return fmt.Errorf("getting shutdown timeout from env: %w", err)
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(deadline)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout))
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
 		return fmt.Errorf("HTTP shutdown error: %w", err)
