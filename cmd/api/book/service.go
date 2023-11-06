@@ -76,11 +76,11 @@ func (s *Service) GetBook(id uuid.UUID) (Book, error) {
 }
 
 type PagedBooks struct {
-	PageCurrent int    `json:"page_current"`
-	PageTotal   int    `json:"page_total"`
-	PageSize    int    `json:"page_size"`
-	ItemsTotal  int    `json:"items_total"`
-	Results     []Book `json:"results"`
+	PageCurrent int
+	PageTotal   int
+	PageSize    int
+	ItemsTotal  int
+	Results     []Book
 }
 
 type ListBooksRequest struct {

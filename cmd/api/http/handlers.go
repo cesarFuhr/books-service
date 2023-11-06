@@ -75,7 +75,7 @@ func (h *BookHandler) archiveBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseJSON(w, http.StatusOK, archivedBook)
+	responseJSON(w, http.StatusOK, bookToResponse(archivedBook))
 }
 
 /* Validates the entry, then stores the entry as a new book. */
@@ -105,7 +105,7 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseJSON(w, http.StatusCreated, storedBook)
+	responseJSON(w, http.StatusCreated, bookToResponse(storedBook))
 }
 
 /* Returns the book with that specific ID. */
@@ -127,7 +127,7 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseJSON(w, http.StatusOK, returnedBook)
+	responseJSON(w, http.StatusOK, bookToResponse(returnedBook))
 }
 
 /* Returns a list of the stored books. */
@@ -201,7 +201,7 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
 	}
-	responseJSON(w, http.StatusOK, pagedBooks)
+	responseJSON(w, http.StatusOK, pagedBooksToResponse(pagedBooks))
 }
 
 /* Validates the entry, then updates the asked book. */
@@ -241,7 +241,7 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseJSON(w, http.StatusOK, updatedBook)
+	responseJSON(w, http.StatusOK, bookToResponse(updatedBook))
 }
 
 /* Isolates the ID from the URL. */
@@ -254,6 +254,49 @@ func isolateId(w http.ResponseWriter, r *http.Request) (id uuid.UUID, err error)
 		return id, err
 	}
 	return id, nil
+}
+
+type BookResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Price     *float32  `json:"price"`
+	Inventory *int      `json:"inventory"`
+	Archived  bool      `json:"archived"`
+}
+
+/*Copy the fields of a book object to an http layer struct with json tags*/
+func bookToResponse(b book.Book) BookResponse {
+	return BookResponse{
+		ID:        b.ID,
+		Name:      b.Name,
+		Price:     b.Price,
+		Inventory: b.Inventory,
+		Archived:  b.Archived,
+	}
+}
+
+type PageOfBooksResponse struct {
+	PageCurrent int            `json:"page_current"`
+	PageTotal   int            `json:"page_total"`
+	PageSize    int            `json:"page_size"`
+	ItemsTotal  int            `json:"items_total"`
+	Results     []BookResponse `json:"results"`
+}
+
+/*Copy the fields of a PagedBooks object to an http layer struct with json tags*/
+func pagedBooksToResponse(page book.PagedBooks) PageOfBooksResponse {
+	jsonTagedBooks := []BookResponse{}
+	for _, book := range page.Results {
+		jsonTagedBooks = append(jsonTagedBooks, bookToResponse(book))
+	}
+
+	return PageOfBooksResponse{
+		PageCurrent: page.PageCurrent,
+		PageTotal:   page.PageTotal,
+		PageSize:    page.PageSize,
+		ItemsTotal:  page.ItemsTotal,
+		Results:     jsonTagedBooks,
+	}
 }
 
 /*Writes a JSON response into a http.ResponseWriter. */

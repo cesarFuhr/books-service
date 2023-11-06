@@ -8,14 +8,14 @@ import (
 
 const PriceMax = 9999.99 //max value to field price on db, set to: numeric(6,2)
 
-type Book struct { //IS IT POSSIBLE TO MOVE JSON TAGS TO HTTP PACKAGE??
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Price     *float32  `json:"price"`
-	Inventory *int      `json:"inventory"`
-	CreatedAt time.Time `json:"-"`
-	UpdatedAt time.Time `json:"-"`
-	Archived  bool      `json:"archived"`
+type Book struct {
+	ID        uuid.UUID
+	Name      string
+	Price     *float32
+	Inventory *int
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Archived  bool
 }
 
 /* Verifies if all entry fields are filled and returns a warning message if so. */
