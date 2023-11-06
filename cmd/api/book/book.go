@@ -19,7 +19,7 @@ type Book struct { //IS IT POSSIBLE TO MOVE JSON TAGS TO HTTP PACKAGE??
 }
 
 /* Verifies if all entry fields are filled and returns a warning message if so. */
-func FilledFields(bookEntry Book) error {
+func FilledFields(bookEntry EntryBookRequest) error {
 	if bookEntry.Name == "" {
 		return ErrResponseBookEntryBlankFileds
 	}

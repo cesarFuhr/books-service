@@ -80,7 +80,7 @@ func (h *BookHandler) archiveBook(w http.ResponseWriter, r *http.Request) {
 
 /* Validates the entry, then stores the entry as a new book. */
 func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
-	var bookEntry book.Book
+	var bookEntry book.EntryBookRequest
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
@@ -98,7 +98,7 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	storedBook, err := h.bookService.CreateBook(bookEntry) //Store the book in the database
+	storedBook, err := h.bookService.CreateBook(bookEntry)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -211,7 +211,7 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var bookEntry book.Book
+	var bookEntry book.EntryBookRequest
 	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
