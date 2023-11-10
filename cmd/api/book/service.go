@@ -9,10 +9,10 @@ import (
 
 type ServiceAPI interface {
 	ArchiveBook(id uuid.UUID) (Book, error)
-	CreateBook(bookEntry EntryBookRequest) (Book, error)
+	CreateBook(req CreateBookRequest) (Book, error)
 	GetBook(id uuid.UUID) (Book, error)
 	ListBooks(params ListBooksRequest) (PagedBooks, error)
-	UpdateBook(bookEntry EntryBookRequest, id uuid.UUID) (Book, error)
+	UpdateBook(req UpdateBookRequest) (Book, error)
 }
 
 type Repository interface {
@@ -37,19 +37,19 @@ func (s *Service) ArchiveBook(id uuid.UUID) (Book, error) {
 	return s.repo.SetBookArchiveStatus(id, archived)
 }
 
-type EntryBookRequest struct {
+type CreateBookRequest struct {
 	Name      string
 	Price     *float32
 	Inventory *int
 }
 
-func (s *Service) CreateBook(bookEntry EntryBookRequest) (Book, error) {
+func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
 	createdAt := time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
 	newBook := Book{
 		ID:        uuid.New(), //Atribute an ID to the entry
-		Name:      bookEntry.Name,
-		Price:     bookEntry.Price,
-		Inventory: bookEntry.Inventory,
+		Name:      req.Name,
+		Price:     req.Price,
+		Inventory: req.Inventory,
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
 		//Archived is set to false by defalut inside database
@@ -57,13 +57,20 @@ func (s *Service) CreateBook(bookEntry EntryBookRequest) (Book, error) {
 	return s.repo.CreateBook(newBook)
 }
 
-func (s *Service) UpdateBook(bookEntry EntryBookRequest, id uuid.UUID) (Book, error) {
+type UpdateBookRequest struct {
+	ID        uuid.UUID
+	Name      string
+	Price     *float32
+	Inventory *int
+}
+
+func (s *Service) UpdateBook(req UpdateBookRequest) (Book, error) {
 	updatedAt := time.Now().UTC().Round(time.Millisecond) //Atribute a new updating time to the new entry.
 	updateBook := Book{
-		ID:        id,
-		Name:      bookEntry.Name,
-		Price:     bookEntry.Price,
-		Inventory: bookEntry.Inventory,
+		ID:        req.ID,
+		Name:      req.Name,
+		Price:     req.Price,
+		Inventory: req.Inventory,
 		//CreatedAt will not change
 		UpdatedAt: updatedAt,
 		//Archived will not change

@@ -17,18 +17,3 @@ type Book struct {
 	UpdatedAt time.Time
 	Archived  bool
 }
-
-/* Verifies if all entry fields are filled and returns a warning message if so. */
-func FilledFields(bookEntry EntryBookRequest) error {
-	if bookEntry.Name == "" {
-		return ErrResponseBookEntryBlankFileds
-	}
-	if bookEntry.Price == nil {
-		return ErrResponseBookEntryBlankFileds
-	}
-	if bookEntry.Inventory == nil {
-		return ErrResponseBookEntryBlankFileds
-	}
-
-	return nil
-}

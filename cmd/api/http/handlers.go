@@ -78,9 +78,15 @@ func (h *BookHandler) archiveBook(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, bookToResponse(archivedBook))
 }
 
+type BookEntry struct {
+	Name      string   `json:"name"`
+	Price     *float32 `json:"price"`
+	Inventory *int     `json:"inventory"`
+}
+
 /* Validates the entry, then stores the entry as a new book. */
 func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
-	var bookEntry book.EntryBookRequest
+	var bookEntry BookEntry
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
 		log.Println(err)
@@ -92,13 +98,15 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = book.FilledFields(bookEntry) //Verify if all entry fields are filled.
+	err = FilledFields(bookEntry) //Verify if all entry fields are filled.
 	if err != nil {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
 	}
 
-	storedBook, err := h.bookService.CreateBook(bookEntry)
+	reqBook := bookToCreateReq(bookEntry)
+
+	storedBook, err := h.bookService.CreateBook(reqBook)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -106,6 +114,48 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseJSON(w, http.StatusCreated, bookToResponse(storedBook))
+}
+
+/* Validates the entry, then updates the asked book. */
+func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
+	id, err := isolateId(w, r)
+	if err != nil {
+		return
+	}
+
+	var bookEntry BookEntry
+	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
+	if err != nil {
+		log.Println(err)
+		errR := book.ErrResponse{
+			Code:    book.ErrResponseBookEntryInvalidJSON.Code,
+			Message: book.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+		}
+		responseJSON(w, http.StatusBadRequest, errR)
+		return
+	}
+
+	err = FilledFields(bookEntry) //Verify if all entry fields are filled.
+	if err != nil {
+		responseJSON(w, http.StatusBadRequest, err)
+		return
+	}
+
+	reqBook := bookToUpdateReq(bookEntry, id)
+
+	updatedBook, err := h.bookService.UpdateBook(reqBook) //Update the stored book
+	if err != nil {
+		if errors.Is(err, book.ErrResponseBookNotFound) {
+			log.Println(err)
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, bookToResponse(updatedBook))
 }
 
 /* Returns the book with that specific ID. */
@@ -204,44 +254,38 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, pagedBooksToResponse(pagedBooks))
 }
 
-/* Validates the entry, then updates the asked book. */
-func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
-	id, err := isolateId(w, r)
-	if err != nil {
-		return
+/* Verifies if all entry fields are filled and returns a warning message if so. */
+func FilledFields(bookEntry BookEntry) error {
+	if bookEntry.Name == "" {
+		return book.ErrResponseBookEntryBlankFileds
+	}
+	if bookEntry.Price == nil {
+		return book.ErrResponseBookEntryBlankFileds
+	}
+	if bookEntry.Inventory == nil {
+		return book.ErrResponseBookEntryBlankFileds
 	}
 
-	var bookEntry book.EntryBookRequest
-	err = json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
-	if err != nil {
-		log.Println(err)
-		errR := book.ErrResponse{
-			Code:    book.ErrResponseBookEntryInvalidJSON.Code,
-			Message: book.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
-		}
-		responseJSON(w, http.StatusBadRequest, errR)
-		return
-	}
+	return nil
+}
 
-	err = book.FilledFields(bookEntry) //Verify if all entry fields are filled.
-	if err != nil {
-		responseJSON(w, http.StatusBadRequest, err)
-		return
+/* Converts from BookEntry type to CreateBookRequest type, with no json tags. */
+func bookToCreateReq(b BookEntry) book.CreateBookRequest {
+	return book.CreateBookRequest{
+		Name:      b.Name,
+		Price:     b.Price,
+		Inventory: b.Inventory,
 	}
+}
 
-	updatedBook, err := h.bookService.UpdateBook(bookEntry, id) //Update the stored book
-	if err != nil {
-		if errors.Is(err, book.ErrResponseBookNotFound) {
-			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+/* Converts from BookEntry type to UpdateBookRequest type, with no json tags. */
+func bookToUpdateReq(b BookEntry, id uuid.UUID) book.UpdateBookRequest {
+	return book.UpdateBookRequest{
+		ID:        id,
+		Name:      b.Name,
+		Price:     b.Price,
+		Inventory: b.Inventory,
 	}
-
-	responseJSON(w, http.StatusOK, bookToResponse(updatedBook))
 }
 
 /* Isolates the ID from the URL. */
@@ -285,9 +329,9 @@ type PageOfBooksResponse struct {
 
 /*Copy the fields of a PagedBooks object to an http layer struct with json tags*/
 func pagedBooksToResponse(page book.PagedBooks) PageOfBooksResponse {
-	jsonTagedBooks := []BookResponse{}
+	results := []BookResponse{}
 	for _, book := range page.Results {
-		jsonTagedBooks = append(jsonTagedBooks, bookToResponse(book))
+		results = append(results, bookToResponse(book))
 	}
 
 	return PageOfBooksResponse{
@@ -295,7 +339,7 @@ func pagedBooksToResponse(page book.PagedBooks) PageOfBooksResponse {
 		PageTotal:   page.PageTotal,
 		PageSize:    page.PageSize,
 		ItemsTotal:  page.ItemsTotal,
-		Results:     jsonTagedBooks,
+		Results:     results,
 	}
 }
 
