@@ -9,10 +9,10 @@ import (
 
 type ServiceAPI interface {
 	ArchiveBook(id uuid.UUID) (Book, error)
-	CreateBook(bookEntry Book) (Book, error)
+	CreateBook(req CreateBookRequest) (Book, error)
 	GetBook(id uuid.UUID) (Book, error)
 	ListBooks(params ListBooksRequest) (PagedBooks, error)
-	UpdateBook(bookEntry Book, id uuid.UUID) (Book, error)
+	UpdateBook(req UpdateBookRequest) (Book, error)
 }
 
 type Repository interface {
@@ -37,11 +37,45 @@ func (s *Service) ArchiveBook(id uuid.UUID) (Book, error) {
 	return s.repo.SetBookArchiveStatus(id, archived)
 }
 
-func (s *Service) CreateBook(bookEntry Book) (Book, error) {
-	bookEntry.ID = uuid.New()                                      //Atribute an ID to the entry
-	bookEntry.CreatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
-	bookEntry.UpdatedAt = bookEntry.CreatedAt
-	return s.repo.CreateBook(bookEntry)
+type CreateBookRequest struct {
+	Name      string
+	Price     *float32
+	Inventory *int
+}
+
+func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
+	createdAt := time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
+	newBook := Book{
+		ID:        uuid.New(), //Atribute an ID to the entry
+		Name:      req.Name,
+		Price:     req.Price,
+		Inventory: req.Inventory,
+		CreatedAt: createdAt,
+		UpdatedAt: createdAt,
+		//Archived is set to false by defalut inside database
+	}
+	return s.repo.CreateBook(newBook)
+}
+
+type UpdateBookRequest struct {
+	ID        uuid.UUID
+	Name      string
+	Price     *float32
+	Inventory *int
+}
+
+func (s *Service) UpdateBook(req UpdateBookRequest) (Book, error) {
+	updatedAt := time.Now().UTC().Round(time.Millisecond) //Atribute a new updating time to the new entry.
+	updateBook := Book{
+		ID:        req.ID,
+		Name:      req.Name,
+		Price:     req.Price,
+		Inventory: req.Inventory,
+		//CreatedAt will not change
+		UpdatedAt: updatedAt,
+		//Archived will not change
+	}
+	return s.repo.UpdateBook(updateBook)
 }
 
 func (s *Service) GetBook(id uuid.UUID) (Book, error) {
@@ -49,11 +83,11 @@ func (s *Service) GetBook(id uuid.UUID) (Book, error) {
 }
 
 type PagedBooks struct {
-	PageCurrent int    `json:"page_current"`
-	PageTotal   int    `json:"page_total"`
-	PageSize    int    `json:"page_size"`
-	ItemsTotal  int    `json:"items_total"`
-	Results     []Book `json:"results"`
+	PageCurrent int
+	PageTotal   int
+	PageSize    int
+	ItemsTotal  int
+	Results     []Book
 }
 
 type ListBooksRequest struct {
@@ -111,12 +145,6 @@ func (s *Service) ListBooks(params ListBooksRequest) (PagedBooks, error) {
 	}
 
 	return pageOfBooksList, nil
-}
-
-func (s *Service) UpdateBook(bookEntry Book, id uuid.UUID) (Book, error) {
-	bookEntry.ID = id
-	bookEntry.UpdatedAt = time.Now().UTC().Round(time.Millisecond) //Atribute a new updating time to the new entry.
-	return s.repo.UpdateBook(bookEntry)
 }
 
 /*Calculates the pagination.*/
