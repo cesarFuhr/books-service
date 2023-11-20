@@ -12,19 +12,12 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-var mS *book.Service
-
-/*func TestMain(m *testing.M) {
-
-	os.Exit(m.Run())
-}*/
-
 func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS = book.NewService(mockRepo)
+		mS := book.NewService(mockRepo)
 
 		reqBook := book.CreateBookRequest{
 			Name:      "Service tester book",
@@ -33,15 +26,17 @@ func TestCreateBook(t *testing.T) {
 		}
 		fmt.Println(reqBook)
 
-		mockRepo.EXPECT().CreateBook(book.Book{
-			ID:        uuid.New(), //Atribute an ID to the entry
-			Name:      "Service tester book",
-			Price:     toPointer(float32(100.0)),
-			Inventory: toPointer(99),
-			CreatedAt: time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
-			Archived:  false,
+		mockRepo.EXPECT().CreateBook(gomock.Any()).DoAndReturn(func(b book.Book) (book.Book, error) {
+			is.True(b.ID != uuid.Nil)
+			is.Equal(b.Name, reqBook.Name)
+			is.Equal(b.Price, reqBook.Price)
+			is.Equal(b.Inventory, reqBook.Inventory)
+			is.True(!b.Archived)
+			is.True(time.Now().UTC().After(b.CreatedAt))
+			is.True(time.Now().UTC().After(b.UpdatedAt))
+			return b, nil
 		})
+
 		createdBook, err := mS.CreateBook(reqBook)
 		is.NoErr(err)
 		is.True(createdBook.ID != uuid.Nil)
@@ -55,10 +50,3 @@ func TestCreateBook(t *testing.T) {
 func toPointer[T any](v T) *T {
 	return &v
 }
-
-/*func TestCreateBookCOMMOCK(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	mockRepo := NewMockRepository(ctrl)
-	mS := book.NewService(mockRepo)
-
-}*/
