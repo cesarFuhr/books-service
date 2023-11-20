@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/books-service/cmd/api/book"
+	bookmock "github.com/books-service/cmd/api/book/mocks"
 	"github.com/google/uuid"
 	"github.com/matryer/is"
 	gomock "go.uber.org/mock/gomock"
@@ -22,7 +23,7 @@ func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
-		mockRepo := NewMockRepository(ctrl)
+		mockRepo := bookmock.NewMockRepository(ctrl)
 		mS = book.NewService(mockRepo)
 
 		reqBook := book.CreateBookRequest{
