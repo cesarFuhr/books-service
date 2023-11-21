@@ -5,8 +5,8 @@ down:
 	docker compose down
 
 test: test-env-up
-	export DATABASE_URL='postgres://root:root@localhost:5432/booksdb?sslmode=disable' \
-	export DATABASE_MIGRATIONS_PATH='../../../migrations' \
+	DATABASE_URL='postgres://root:root@localhost:5432/booksdb?sslmode=disable' \
+	DATABASE_MIGRATIONS_PATH='../../../migrations' \
 	go test -p=1 ./...
 
 test-env-up:
