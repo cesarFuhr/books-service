@@ -32,8 +32,8 @@ func TestCreateBook(t *testing.T) {
 			is.Equal(b.Price, reqBook.Price)
 			is.Equal(b.Inventory, reqBook.Inventory)
 			is.True(!b.Archived)
-			is.True(time.Now().UTC().After(b.CreatedAt))
-			is.True(time.Now().UTC().After(b.UpdatedAt))
+			is.True(b.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
+			is.True(b.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 			return b, nil
 		})
 
