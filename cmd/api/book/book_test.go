@@ -1,6 +1,7 @@
 package book_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -110,38 +111,124 @@ func TestGetBook(t *testing.T) {
 	})
 }
 
-/*
 func TestListBooks(t *testing.T) {
-	t.Run("list books without errors", func(t *testing.T) {
-		is := is.New(t)
-		ctrl := gomock.NewController(t)
-		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
-
-		/* reqBooks := book.ListBooksRequest{
-					Name:      "",
-					MinPrice      float32
-					MaxPrice      float32
-					SortBy        string
-					SortDirection string
-					Archived      bool
-					Page          int
-					PageSize      int
-		} */
-/*
+	is := is.New(t)
+	ctrl := gomock.NewController(t)
+	mockRepo := bookmock.NewMockRepository(ctrl)
+	mS := book.NewService(mockRepo)
+	t.Run("list first page of stored books without errors, paginated with exact division", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          1,
+			PageSize:      10,
+		}
 		itemsTotal := 30
+		expectedPagesTotal := 3 //(itemsTotal / PageSize) up rounded to next integer
+		results := []book.Book{}
+		//-------------------------------
 
 		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
 
-		updatedBook, err := mS.ListBooks(reqBook)
+		pageOfBooksList, err := mS.ListBooks(reqBooks)
 		is.NoErr(err)
-		is.Equal(updatedBook.ID, reqBook.ID)
-		is.Equal(updatedBook.Name, reqBook.Name)
-		is.Equal(updatedBook.Price, reqBook.Price)
-		is.Equal(updatedBook.Inventory, reqBook.Inventory)
-		is.True(updatedBook.UpdatedAt.Compare(updatedBook.CreatedAt.Round(time.Millisecond)) > 0)
+		is.Equal(pageOfBooksList.PageCurrent, reqBooks.Page)
+		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
+		is.Equal(pageOfBooksList.PageSize, reqBooks.PageSize)
+		is.Equal(pageOfBooksList.ItemsTotal, itemsTotal)
+		is.Equal(pageOfBooksList.Results, results)
 	})
-} */
+
+	t.Run("list first page of stored books without errors, paginated with not exact division", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          1,
+			PageSize:      10,
+		}
+		itemsTotal := 31
+		expectedPagesTotal := 4 //(itemsTotal / PageSize) up rounded to next integer
+		results := []book.Book{}
+		//-------------------------------
+
+		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+
+		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		is.NoErr(err)
+		is.Equal(pageOfBooksList.PageCurrent, reqBooks.Page)
+		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
+		is.Equal(pageOfBooksList.PageSize, reqBooks.PageSize)
+		is.Equal(pageOfBooksList.ItemsTotal, itemsTotal)
+		is.Equal(pageOfBooksList.Results, results)
+	})
+
+	t.Run("list second page of books without errors", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          2,
+			PageSize:      10,
+		}
+		itemsTotal := 30
+		expectedPagesTotal := 3 //(itemsTotal / PageSize) up rounded to next integer
+		results := []book.Book{}
+		//-------------------------------
+
+		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+
+		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		is.NoErr(err)
+		is.Equal(pageOfBooksList.PageCurrent, reqBooks.Page)
+		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
+		is.Equal(pageOfBooksList.PageSize, reqBooks.PageSize)
+		is.Equal(pageOfBooksList.ItemsTotal, itemsTotal)
+		is.Equal(pageOfBooksList.Results, results)
+	})
+
+	t.Run("list books asking page out of range", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          4,
+			PageSize:      10,
+		}
+		itemsTotal := 30
+		//expectedPagesTotal := 3 //(itemsTotal / PageSize) up rounded to next integer
+		//results := []book.Book{}
+		//-------------------------------
+
+		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		//Its expected that the method returns before calling ListBooks due to the pagination error.
+		//mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+
+		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		is.True(errors.Is(err, book.ErrResponseQueryPageOutOfRange))
+		is.Equal(pageOfBooksList, book.PagedBooks{})
+	})
+}
 
 func toPointer[T any](v T) *T {
 	return &v
