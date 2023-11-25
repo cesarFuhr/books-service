@@ -228,6 +228,36 @@ func TestListBooks(t *testing.T) {
 		is.True(errors.Is(err, book.ErrResponseQueryPageOutOfRange))
 		is.Equal(pageOfBooksList, book.PagedBooks{})
 	})
+
+	t.Run("no books to list", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          2,
+			PageSize:      10,
+		}
+		itemsTotal := 0
+		expectedPagesTotal := 0 //(itemsTotal / PageSize) up rounded to next integer
+		results := []book.Book{}
+		//-------------------------------
+
+		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		//Its expected that the method returns before calling ListBooks since there is no books to list.
+		//mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+
+		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		is.NoErr(err)
+		is.Equal(pageOfBooksList.PageCurrent, 0)
+		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
+		is.Equal(pageOfBooksList.PageSize, 0)
+		is.Equal(pageOfBooksList.ItemsTotal, itemsTotal)
+		is.Equal(pageOfBooksList.Results, results)
+	})
 }
 
 func toPointer[T any](v T) *T {
