@@ -258,6 +258,37 @@ func TestListBooks(t *testing.T) {
 		is.Equal(pageOfBooksList.ItemsTotal, itemsTotal)
 		is.Equal(pageOfBooksList.Results, results)
 	})
+
+	t.Run("expected error from database", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          1,
+			PageSize:      10,
+		}
+		itemsTotal := 30
+		//expectedPagesTotal := 3 //(itemsTotal / PageSize) up rounded to next integer
+		results := []book.Book{}
+		dbErr := errors.New("fake error from database")
+		errRepo := book.ErrResponse{
+			Code:    book.ErrResponseFromRespository.Code,
+			Message: book.ErrResponseFromRespository.Message + dbErr.Error(),
+		}
+		//-------------------------------
+
+		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+
+		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, dbErr)
+
+		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		is.Equal(pageOfBooksList, book.PagedBooks{})
+		is.Equal(err, errRepo)
+	})
 }
 
 func toPointer[T any](v T) *T {
