@@ -24,12 +24,12 @@ func ConnectDb(connStr string) (*sql.DB, error) {
 
 	sqlDB, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("connecting to db: %w", err)
+		return nil, fmt.Errorf("connecting to db, openning: %w", err)
 	}
 
 	err = sqlDB.Ping()
 	if err != nil {
-		return nil, fmt.Errorf("connecting to db: %w", err)
+		return nil, fmt.Errorf("connecting to db, pingging: %w", err)
 	}
 
 	log.Println("Successfully connected!")

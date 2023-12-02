@@ -8,6 +8,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/lib/pq v1.10.9
 	github.com/matryer/is v1.4.1
+	go.uber.org/mock v0.3.0
 )
 
 require (
