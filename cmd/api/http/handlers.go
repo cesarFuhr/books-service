@@ -48,7 +48,7 @@ func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
 		h.listBooks(w, r)
 		return
 	case http.MethodPost:
-		h.createBook(w, r)
+		h.EXPOcreateBook(w, r)
 		return
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -85,7 +85,7 @@ type BookEntry struct {
 }
 
 /* Validates the entry, then stores the entry as a new book. */
-func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
+func (h *BookHandler) EXPOcreateBook(w http.ResponseWriter, r *http.Request) {
 	var bookEntry BookEntry
 	err := json.NewDecoder(r.Body).Decode(&bookEntry) //Read the Json body and save the entry to bookEntry
 	if err != nil {
