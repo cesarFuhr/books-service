@@ -25,7 +25,7 @@ func TestCreateBook(t *testing.T) {
 	mockAPI := httpmock.NewMockServiceAPI(ctrl)
 	bookHandler := bookhttp.NewBookHandler(mockAPI)
 
-	//server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
+	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 
@@ -49,14 +49,12 @@ func TestCreateBook(t *testing.T) {
 			Archived:  false,
 		}
 
-		request, _ := http.NewRequest("", "", strings.NewReader(bookToCreate)) //HTTP method and url are empty here, proving that the route isn't being tested.
+		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
 		mockAPI.EXPECT().CreateBook(reqBook).Return(expectedReturn, nil)
 
-		bookHandler.EXPOcreateBook(response, request) //To call the handle function directly it must be exported!
-
-		//server.Handler.ServeHTTP(response, request)
+		server.Handler.ServeHTTP(response, request)
 
 		is.True(response.Result().StatusCode == 201)
 
