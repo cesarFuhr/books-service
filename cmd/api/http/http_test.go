@@ -3,7 +3,6 @@ package http_test
 import (
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -52,7 +51,8 @@ func TestCreateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 			Archived:  false,
 		}
-		expectedJSONresponse := fmt.Sprintf(`{"id":"%s","name":"HTTP tester book","price":100,"inventory":99,"archived":false}`, newID)
+		expectedJSONresponse := fmt.Sprintf(`{"id":"%s","name":"HTTP tester book","price":100,"inventory":99,"archived":false}
+`, newID)
 
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
@@ -62,10 +62,6 @@ func TestCreateBook(t *testing.T) {
 		server.Handler.ServeHTTP(response, request)
 
 		body, _ := io.ReadAll(response.Result().Body)
-
-		log.Printf("%s, %T \n", string(body), string(body))
-		log.Printf("%s, %T \n", expectedJSONresponse, expectedJSONresponse)
-		log.Println("comparision is:", strings.Compare(string(body), expectedJSONresponse))
 
 		is.True(response.Result().StatusCode == 201)
 		is.Equal(string(body), expectedJSONresponse)
