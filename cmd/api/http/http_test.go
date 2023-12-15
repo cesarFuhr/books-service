@@ -17,10 +17,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-//func TestMain(m *testing.M) {
-//	os.Exit(m.Run())
-//}
-
 func TestCreateBook(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
@@ -31,7 +27,7 @@ func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 
-		reqBook := book.CreateBookRequest{ //FORMAT THIS STRING LATER!!!
+		reqBook := book.CreateBookRequest{
 			Name:      "HTTP tester book",
 			Price:     toPointer(float32(100.0)),
 			Inventory: toPointer(99),
@@ -64,6 +60,51 @@ func TestCreateBook(t *testing.T) {
 		body, _ := io.ReadAll(response.Result().Body)
 
 		is.True(response.Result().StatusCode == 201)
+		is.Equal(string(body), expectedJSONresponse)
+
+	})
+
+	t.Run("expected invalid json error", func(t *testing.T) {
+		is := is.New(t)
+
+		invalidBookToCreate := `{
+			"name": "test with missing coma after price",
+			"price": 100
+			"inventory": 99
+		}`
+		expectedJSONresponse := `{"error_code":102,"error_message":"invalid json request.invalid character '\"' after object key:value pair"}
+`
+
+		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(invalidBookToCreate))
+		response := httptest.NewRecorder()
+
+		server.Handler.ServeHTTP(response, request)
+
+		body, _ := io.ReadAll(response.Result().Body)
+
+		is.True(response.Result().StatusCode == 400)
+		is.Equal(string(body), expectedJSONresponse)
+
+	})
+
+	t.Run("expected blank fields error", func(t *testing.T) {
+		is := is.New(t)
+
+		invalidBookToCreate := `{
+			"name": "test with missing inventory",
+			"price": 100
+		}`
+		expectedJSONresponse := `{"error_code":100,"error_message":"all the fields - name, price and inventory - must be filled correctly."}
+`
+
+		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(invalidBookToCreate))
+		response := httptest.NewRecorder()
+
+		server.Handler.ServeHTTP(response, request)
+
+		body, _ := io.ReadAll(response.Result().Body)
+
+		is.True(response.Result().StatusCode == 400)
 		is.Equal(string(body), expectedJSONresponse)
 
 	})
