@@ -48,8 +48,7 @@ func TestCreateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 			Archived:  false,
 		}
-		expectedJSONresponse := fmt.Sprintf(`{"id":"%s","name":"HTTP tester book","price":100,"inventory":99,"archived":false}
-`, newID)
+		expectedJSONresponse := fmt.Sprintf(`{"id":"%s","name":"HTTP tester book","price":100,"inventory":99,"archived":false}`+"\n", newID)
 
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
@@ -73,8 +72,7 @@ func TestCreateBook(t *testing.T) {
 				"price": 100
 				"inventory": 99
 			}`
-		expectedJSONresponse := `{"error_code":102,"error_message":"invalid json request.invalid character '\"' after object key:value pair"}
-`
+		expectedJSONresponse := fmt.Sprintln(`{"error_code":102,"error_message":"invalid json request.invalid character '\"' after object key:value pair"}`)
 
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(invalidBookToCreate))
 		response := httptest.NewRecorder()
@@ -95,8 +93,7 @@ func TestCreateBook(t *testing.T) {
 			"name": "test with missing inventory",
 			"price": 100
 		}`
-		expectedJSONresponse := `{"error_code":100,"error_message":"all the fields - name, price and inventory - must be filled correctly."}
-`
+		expectedJSONresponse := fmt.Sprintln(`{"error_code":100,"error_message":"all the fields - name, price and inventory - must be filled correctly."}`)
 
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(invalidBookToCreate))
 		response := httptest.NewRecorder()
@@ -160,7 +157,7 @@ func TestListBooks(t *testing.T) {
 
 		expectedJSONresponse, err := json.Marshal(pagedBooksToResponse(expectedReturn))
 		is.NoErr(err)
-		expectedJSONresponse = append(expectedJSONresponse, 10)
+		expectedJSONresponse = append(expectedJSONresponse, []byte("\n")...)
 
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
@@ -201,7 +198,7 @@ func TestListBooks(t *testing.T) {
 
 		expectedJSONresponse, err := json.Marshal(pagedBooksToResponse(expectedReturn))
 		is.NoErr(err)
-		expectedJSONresponse = append(expectedJSONresponse, 10)
+		expectedJSONresponse = append(expectedJSONresponse, []byte("\n")...)
 
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
@@ -224,7 +221,7 @@ func TestListBooks(t *testing.T) {
 
 		expectedJSONresponse, err := json.Marshal(book.ErrResponseQuerySortByInvalid)
 		is.NoErr(err)
-		expectedJSONresponse = append(expectedJSONresponse, 10)
+		expectedJSONresponse = append(expectedJSONresponse, []byte("\n")...)
 
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
@@ -245,7 +242,7 @@ func TestListBooks(t *testing.T) {
 
 		expectedJSONresponse, err := json.Marshal(book.ErrResponseQueryPageInvalid)
 		is.NoErr(err)
-		expectedJSONresponse = append(expectedJSONresponse, 10)
+		expectedJSONresponse = append(expectedJSONresponse, []byte("\n")...)
 
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
