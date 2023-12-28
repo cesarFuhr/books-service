@@ -1,6 +1,7 @@
 package book_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/matryer/is"
 	gomock "go.uber.org/mock/gomock"
 )
+
+var ctx context.Context = context.TODO() //Should we have a specific context to run the tests, here too? This one lives forever.
 
 func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {
@@ -25,7 +28,7 @@ func TestCreateBook(t *testing.T) {
 			Inventory: toPointer(99),
 		}
 
-		mockRepo.EXPECT().CreateBook(gomock.Any()).DoAndReturn(func(b book.Book) (book.Book, error) {
+		mockRepo.EXPECT().CreateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, b book.Book) (book.Book, error) {
 			is.True(b.ID != uuid.Nil)
 			is.Equal(b.Name, reqBook.Name)
 			is.Equal(b.Price, reqBook.Price)
@@ -36,7 +39,7 @@ func TestCreateBook(t *testing.T) {
 			return b, nil
 		})
 
-		createdBook, err := mS.CreateBook(reqBook)
+		createdBook, err := mS.CreateBook(ctx, reqBook)
 		is.NoErr(err)
 		is.True(createdBook.ID != uuid.Nil)
 		is.Equal(createdBook.Name, reqBook.Name)

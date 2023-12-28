@@ -1,6 +1,7 @@
 package book
 
 import (
+	"context"
 	"math"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 
 type ServiceAPI interface {
 	ArchiveBook(id uuid.UUID) (Book, error)
-	CreateBook(req CreateBookRequest) (Book, error)
+	CreateBook(ctx context.Context, req CreateBookRequest) (Book, error)
 	GetBook(id uuid.UUID) (Book, error)
 	ListBooks(params ListBooksRequest) (PagedBooks, error)
 	UpdateBook(req UpdateBookRequest) (Book, error)
@@ -17,7 +18,7 @@ type ServiceAPI interface {
 
 type Repository interface {
 	SetBookArchiveStatus(id uuid.UUID, archived bool) (Book, error)
-	CreateBook(bookEntry Book) (Book, error)
+	CreateBook(ctx context.Context, bookEntry Book) (Book, error)
 	GetBookByID(id uuid.UUID) (Book, error)
 	ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]Book, error)
 	ListBooksTotals(name string, minPrice32, maxPrice32 float32, archived bool) (int, error)
@@ -43,7 +44,7 @@ type CreateBookRequest struct {
 	Inventory *int
 }
 
-func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
+func (s *Service) CreateBook(ctx context.Context, req CreateBookRequest) (Book, error) {
 	createdAt := time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
 	newBook := Book{
 		ID:        uuid.New(), //Atribute an ID to the entry
@@ -54,7 +55,7 @@ func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
 		UpdatedAt: createdAt,
 		//Archived is set to false by defalut inside database
 	}
-	return s.repo.CreateBook(newBook)
+	return s.repo.CreateBook(ctx, newBook)
 }
 
 type UpdateBookRequest struct {

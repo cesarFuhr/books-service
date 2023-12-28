@@ -1,6 +1,7 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -84,12 +85,12 @@ func (store *Store) SetBookArchiveStatus(id uuid.UUID, archived bool) (book.Book
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
-func (store *Store) CreateBook(bookEntry book.Book) (book.Book, error) {
+func (store *Store) CreateBook(ctx context.Context, bookEntry book.Book) (book.Book, error) {
 	sqlStatement := `
 	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING *`
-	createdRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
+	createdRow := store.db.QueryRowContext(ctx, sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
 	var bookToReturn book.Book
 	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {

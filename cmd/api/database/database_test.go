@@ -1,6 +1,7 @@
 package database_test
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -23,6 +24,7 @@ import (
 
 var store *database.Store
 var sqlDB *sql.DB
+var ctx context.Context = context.TODO() //Should we have a specific context to run the tests?
 
 // TestMain is called before all the tests run.
 // Usually is where we add logic to initialise resources.
@@ -68,7 +70,7 @@ func TestCreateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.CreateBook(b)
+		newBook, err := store.CreateBook(ctx, b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 	})
@@ -92,7 +94,7 @@ func TestArchiveStatusBook(t *testing.T) {
 			Archived:  false,
 		}
 
-		newBook, err := store.CreateBook(b)
+		newBook, err := store.CreateBook(ctx, b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -143,7 +145,7 @@ func TestUpdateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.CreateBook(b)
+		newBook, err := store.CreateBook(ctx, b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -194,7 +196,7 @@ func TestGetBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.CreateBook(b)
+		newBook, err := store.CreateBook(ctx, b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
@@ -243,7 +245,7 @@ func TestListBooks(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
 
-		newBook, err := store.CreateBook(b)
+		newBook, err := store.CreateBook(ctx, b)
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 		testBookslist = append(testBookslist, b)

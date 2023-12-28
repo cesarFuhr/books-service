@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -8,10 +9,13 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/google/uuid"
 )
+
+var timeout = time.Duration(1) * time.Millisecond
 
 type BookHandler struct {
 	bookService book.ServiceAPI
@@ -23,6 +27,11 @@ func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
 
 /* Addresses a call to "/books/(expected id here)" according to the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
+
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout))
+	defer cancel()
+	r = r.WithContext(ctx)
+
 	method := r.Method
 	switch method {
 	case http.MethodGet:
@@ -42,6 +51,11 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 
 /* Addresses a call to "/books" according to the requested action.  */
 func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
+
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout))
+	defer cancel()
+	r = r.WithContext(ctx)
+
 	method := r.Method
 	switch method {
 	case http.MethodGet:
@@ -106,7 +120,7 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 
 	reqBook := bookToCreateReq(bookEntry)
 
-	storedBook, err := h.bookService.CreateBook(reqBook)
+	storedBook, err := h.bookService.CreateBook(r.Context(), reqBook)
 	if err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)

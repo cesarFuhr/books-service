@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,8 @@ import (
 	"github.com/matryer/is"
 	"go.uber.org/mock/gomock"
 )
+
+var ctx context.Context = context.TODO() //Should we have a specific context to run the tests?
 
 func TestCreateBook(t *testing.T) {
 
@@ -53,7 +56,7 @@ func TestCreateBook(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().CreateBook(reqBook).Return(expectedReturn, nil)
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).Return(expectedReturn, nil) //Maybe we should change Any() for the right context, defined as global at the top
 
 		server.Handler.ServeHTTP(response, request)
 

@@ -9,6 +9,7 @@
 package http
 
 import (
+	context "context"
 	reflect "reflect"
 
 	book "github.com/books-service/cmd/api/book"
@@ -55,18 +56,18 @@ func (mr *MockServiceAPIMockRecorder) ArchiveBook(arg0 any) *gomock.Call {
 }
 
 // CreateBook mocks base method.
-func (m *MockServiceAPI) CreateBook(arg0 book.CreateBookRequest) (book.Book, error) {
+func (m *MockServiceAPI) CreateBook(arg0 context.Context, arg1 book.CreateBookRequest) (book.Book, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateBook", arg0)
+	ret := m.ctrl.Call(m, "CreateBook", arg0, arg1)
 	ret0, _ := ret[0].(book.Book)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateBook indicates an expected call of CreateBook.
-func (mr *MockServiceAPIMockRecorder) CreateBook(arg0 any) *gomock.Call {
+func (mr *MockServiceAPIMockRecorder) CreateBook(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBook", reflect.TypeOf((*MockServiceAPI)(nil).CreateBook), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBook", reflect.TypeOf((*MockServiceAPI)(nil).CreateBook), arg0, arg1)
 }
 
 // GetBook mocks base method.
