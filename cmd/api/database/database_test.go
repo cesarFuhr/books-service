@@ -24,7 +24,7 @@ import (
 
 var store *database.Store
 var sqlDB *sql.DB
-var ctx context.Context = context.TODO() //Should we have a specific context to run the tests?
+var ctx context.Context = context.Background()
 
 // TestMain is called before all the tests run.
 // Usually is where we add logic to initialise resources.

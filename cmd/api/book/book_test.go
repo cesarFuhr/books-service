@@ -13,7 +13,7 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
-var ctx context.Context = context.TODO() //Should we have a specific context to run the tests, here too? This one lives forever.
+var ctx context.Context = context.Background()
 
 func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {

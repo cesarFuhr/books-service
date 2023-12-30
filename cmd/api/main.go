@@ -53,6 +53,14 @@ func run() error {
 	//create and init http server:
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
+	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	if reqTimeoutStr != "" {
+		bookhttp.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("getting request timeout from env: %w", err)
+		}
+	}
+
 	go func() {
 		err := server.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {

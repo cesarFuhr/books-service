@@ -15,6 +15,7 @@ services:
       DATABASE_URL: "postgres://postgres:chevas@db:5432/booksdb?sslmode=disable"
       DATABASE_MIGRATIONS_PATH: "/src/migrations"
       SERVICE_SHUTDOWN_TIMEOUT: "10s"
+      HTTP_REQUEST_TIMEOUT: "5s"
       
   db:
     image: postgres:14.6-bullseye

@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +20,20 @@ import (
 	"github.com/matryer/is"
 	"go.uber.org/mock/gomock"
 )
+
+func TestMain(m *testing.M) {
+	var err error
+
+	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	if reqTimeoutStr != "" {
+		bookhttp.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
+		if err != nil {
+			log.Fatalln("getting request timeout from env: %w", err)
+		}
+	}
+
+	os.Exit(m.Run())
+}
 
 func TestCreateBook(t *testing.T) {
 
@@ -135,14 +150,14 @@ func TestCreateBook(t *testing.T) {
 		}
 		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"error from context:context deadline exceeded"}`)
 
-		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.Timeout)
+		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.RequestTimeout)
 		defer cancel()
 
 		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
 		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
-			time.Sleep(bookhttp.Timeout + time.Second)
+			time.Sleep(bookhttp.RequestTimeout + time.Second)
 			log.Println("context error: ", ctxTest.Err())
 			return expectedReturn, ctxTest.Err()
 		})
@@ -181,7 +196,7 @@ func TestCreateBook(t *testing.T) {
 		}
 		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"error from context:context canceled"}`)
 
-		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.Timeout)
+		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.RequestTimeout)
 		defer cancel()
 
 		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
