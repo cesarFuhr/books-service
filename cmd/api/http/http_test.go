@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,8 +20,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-var ctx context.Context = context.TODO() //Should we have a specific context to run the tests?
-
 func TestCreateBook(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
@@ -28,6 +27,7 @@ func TestCreateBook(t *testing.T) {
 	bookHandler := bookhttp.NewBookHandler(mockAPI)
 
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
+
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 
@@ -106,6 +106,98 @@ func TestCreateBook(t *testing.T) {
 		body, _ := io.ReadAll(response.Result().Body)
 
 		is.True(response.Result().StatusCode == 400)
+		is.Equal(string(body), expectedJSONresponse)
+
+	})
+
+	t.Run("expected context timeout error", func(t *testing.T) {
+		is := is.New(t)
+
+		reqBook := book.CreateBookRequest{
+			Name:      "HTTP tester book",
+			Price:     toPointer(float32(100.0)),
+			Inventory: toPointer(99),
+		}
+		bookToCreate := `{
+			"name": "HTTP tester book",
+			"price": 100,
+			"inventory": 99
+		}`
+		newID := uuid.New()
+		expectedReturn := book.Book{
+			ID:        newID,
+			Name:      reqBook.Name,
+			Price:     reqBook.Price,
+			Inventory: reqBook.Inventory,
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			Archived:  false,
+		}
+		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"error from context:context deadline exceeded"}`)
+
+		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.Timeout)
+		defer cancel()
+
+		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
+		response := httptest.NewRecorder()
+
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
+			time.Sleep(bookhttp.Timeout)
+			log.Println("context error: ", ctxTest.Err())
+			return expectedReturn, ctxTest.Err()
+		})
+
+		server.Handler.ServeHTTP(response, request)
+
+		body, _ := io.ReadAll(response.Result().Body)
+
+		is.True(response.Result().StatusCode == 504)
+		is.Equal(string(body), expectedJSONresponse)
+
+	})
+
+	t.Run("expected context canceled error", func(t *testing.T) {
+		is := is.New(t)
+
+		reqBook := book.CreateBookRequest{
+			Name:      "HTTP tester book",
+			Price:     toPointer(float32(100.0)),
+			Inventory: toPointer(99),
+		}
+		bookToCreate := `{
+			"name": "HTTP tester book",
+			"price": 100,
+			"inventory": 99
+		}`
+		newID := uuid.New()
+		expectedReturn := book.Book{
+			ID:        newID,
+			Name:      reqBook.Name,
+			Price:     reqBook.Price,
+			Inventory: reqBook.Inventory,
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			Archived:  false,
+		}
+		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"error from context:context canceled"}`)
+
+		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.Timeout)
+		defer cancel()
+
+		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
+		response := httptest.NewRecorder()
+
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
+			cancel()
+			log.Println("context error: ", ctxTest.Err())
+			return expectedReturn, ctxTest.Err()
+		})
+
+		server.Handler.ServeHTTP(response, request)
+
+		body, _ := io.ReadAll(response.Result().Body)
+
+		is.True(response.Result().StatusCode == 504)
 		is.Equal(string(body), expectedJSONresponse)
 
 	})

@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var timeout = time.Duration(30) * time.Millisecond
+var Timeout = time.Duration(5) * time.Second
 
 type BookHandler struct {
 	bookService book.ServiceAPI
@@ -28,7 +28,7 @@ func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
 /* Addresses a call to "/books/(expected id here)" according to the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(Timeout))
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -52,7 +52,7 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 /* Addresses a call to "/books" according to the requested action.  */
 func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(Timeout))
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -127,7 +127,7 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 				Code:    book.ErrResponseFromContext.Code,
 				Message: book.ErrResponseFromContext.Message + r.Context().Err().Error(),
 			}
-			responseJSON(w, http.StatusInternalServerError, errCtx)
+			responseJSON(w, http.StatusGatewayTimeout, errCtx)
 			return
 		}
 		log.Println(err)
