@@ -142,7 +142,7 @@ func TestCreateBook(t *testing.T) {
 		response := httptest.NewRecorder()
 
 		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
-			time.Sleep(bookhttp.Timeout)
+			time.Sleep(bookhttp.Timeout + time.Second)
 			log.Println("context error: ", ctxTest.Err())
 			return expectedReturn, ctxTest.Err()
 		})
@@ -198,6 +198,7 @@ func TestCreateBook(t *testing.T) {
 		body, _ := io.ReadAll(response.Result().Body)
 
 		is.True(response.Result().StatusCode == 504)
+
 		is.Equal(string(body), expectedJSONresponse)
 
 	})
