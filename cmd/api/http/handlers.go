@@ -52,9 +52,9 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 /* Addresses a call to "/books" according to the requested action.  */
 func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(RequestTimeout))
+	/*ctx, cancel := context.WithTimeout(r.Context(), time.Duration(RequestTimeout))
 	defer cancel()
-	r = r.WithContext(ctx)
+	r = r.WithContext(ctx)*/
 
 	method := r.Method
 	switch method {
@@ -122,6 +122,11 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 
 	storedBook, err := h.bookService.CreateBook(r.Context(), reqBook)
 	if err != nil {
+		handleError(err)
+		return
+	}
+
+	{
 		if errors.Is(err, r.Context().Err()) {
 			errCtx := book.ErrResponse{
 				Code:    book.ErrResponseFromContext.Code,
@@ -130,6 +135,7 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 			responseJSON(w, http.StatusGatewayTimeout, errCtx)
 			return
 		}
+
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
