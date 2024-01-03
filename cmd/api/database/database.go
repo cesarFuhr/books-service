@@ -63,13 +63,13 @@ func MigrationUp(store *Store, path string) error {
 }
 
 /* Change the status of 'archived' column on database. */
-func (store *Store) SetBookArchiveStatus(id uuid.UUID, archived bool) (book.Book, error) {
+func (store *Store) SetBookArchiveStatus(ctx context.Context, id uuid.UUID, archived bool) (book.Book, error) {
 	sqlStatement := `
 	UPDATE bookstable 
 	SET archived = $2
 	WHERE id = $1
 	RETURNING *`
-	updatedRow := store.db.QueryRow(sqlStatement, id, archived)
+	updatedRow := store.db.QueryRowContext(ctx, sqlStatement, id, archived)
 	var bookToReturn book.Book
 	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -101,11 +101,11 @@ func (store *Store) CreateBook(ctx context.Context, bookEntry book.Book) (book.B
 }
 
 /* Searches a book in database based on ID and returns it if succeed. */
-func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
+func (store *Store) GetBookByID(ctx context.Context, id uuid.UUID) (book.Book, error) {
 	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived
 	FROM bookstable 
 	WHERE id=$1;`
-	foundRow := store.db.QueryRow(sqlStatement, id)
+	foundRow := store.db.QueryRowContext(ctx, sqlStatement, id)
 	var bookToReturn book.Book
 	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -121,7 +121,7 @@ func (store *Store) GetBookByID(id uuid.UUID) (book.Book, error) {
 }
 
 /* Returns filtered content of database in a list of books*/
-func (store *Store) ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
+func (store *Store) ListBooks(ctx context.Context, name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
@@ -138,7 +138,7 @@ func (store *Store) ListBooks(name string, minPrice32, maxPrice32 float32, sortB
 	ORDER BY `, sortBy, ` `, sortDirection, ` 
 	LIMIT `, limit, ` OFFSET `, offset, ` ;`)
 
-	rows, err := store.db.Query(sqlStatement, name, minPrice32, maxPrice32, archived)
+	rows, err := store.db.QueryContext(ctx, sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
@@ -163,13 +163,13 @@ func (store *Store) ListBooks(name string, minPrice32, maxPrice32 float32, sortB
 }
 
 /* Stores the book into the database, checks and returns it if succeed. */
-func (store *Store) UpdateBook(bookEntry book.Book) (book.Book, error) {
+func (store *Store) UpdateBook(ctx context.Context, bookEntry book.Book) (book.Book, error) {
 	sqlStatement := `
 	UPDATE bookstable 
 	SET name = $2, price = $3, inventory = $4, updated_at = $5
 	WHERE id = $1
 	RETURNING *`
-	updatedRow := store.db.QueryRow(sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
+	updatedRow := store.db.QueryRowContext(ctx, sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
 	var bookToReturn book.Book
 	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -185,7 +185,7 @@ func (store *Store) UpdateBook(bookEntry book.Book) (book.Book, error) {
 }
 
 /* Counts how many rows in db fit the specified filter parameters. */
-func (store *Store) ListBooksTotals(name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
+func (store *Store) ListBooksTotals(ctx context.Context, name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
 	if name != "" {
 		name = fmt.Sprint("%", name, "%")
 	} else {
@@ -197,7 +197,7 @@ func (store *Store) ListBooksTotals(name string, minPrice32, maxPrice32 float32,
 	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3;`
 
-	row := store.db.QueryRow(sqlStatement, name, minPrice32, maxPrice32, archived)
+	row := store.db.QueryRowContext(ctx, sqlStatement, name, minPrice32, maxPrice32, archived)
 	var count int
 	err := row.Scan(&count)
 	if err != nil {

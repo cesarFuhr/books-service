@@ -55,7 +55,7 @@ func run() error {
 
 	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
 	if reqTimeoutStr != "" {
-		bookhttp.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
+		book.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
 		if err != nil {
 			return fmt.Errorf("getting request timeout from env: %w", err)
 		}

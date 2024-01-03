@@ -18,4 +18,4 @@ var ErrResponseQuerySortByInvalid = ErrResponse{105, "query parameter 'sort_by' 
 var ErrResponseQueryPageInvalid = ErrResponse{106, "query parameter 'page' must be an int starting in 1. 'page_size' must be an int beetween 1 and 30."}
 var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
 var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}
-var ErrResponseFromContext = ErrResponse{109, "error from context:"}
+var ErrResponseRequestTimeout = ErrResponse{109, "context deadline exceeded"}

@@ -41,18 +41,18 @@ func (m *MockServiceAPI) EXPECT() *MockServiceAPIMockRecorder {
 }
 
 // ArchiveBook mocks base method.
-func (m *MockServiceAPI) ArchiveBook(arg0 uuid.UUID) (book.Book, error) {
+func (m *MockServiceAPI) ArchiveBook(arg0 context.Context, arg1 uuid.UUID) (book.Book, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ArchiveBook", arg0)
+	ret := m.ctrl.Call(m, "ArchiveBook", arg0, arg1)
 	ret0, _ := ret[0].(book.Book)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ArchiveBook indicates an expected call of ArchiveBook.
-func (mr *MockServiceAPIMockRecorder) ArchiveBook(arg0 any) *gomock.Call {
+func (mr *MockServiceAPIMockRecorder) ArchiveBook(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ArchiveBook", reflect.TypeOf((*MockServiceAPI)(nil).ArchiveBook), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ArchiveBook", reflect.TypeOf((*MockServiceAPI)(nil).ArchiveBook), arg0, arg1)
 }
 
 // CreateBook mocks base method.
@@ -71,46 +71,46 @@ func (mr *MockServiceAPIMockRecorder) CreateBook(arg0, arg1 any) *gomock.Call {
 }
 
 // GetBook mocks base method.
-func (m *MockServiceAPI) GetBook(arg0 uuid.UUID) (book.Book, error) {
+func (m *MockServiceAPI) GetBook(arg0 context.Context, arg1 uuid.UUID) (book.Book, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBook", arg0)
+	ret := m.ctrl.Call(m, "GetBook", arg0, arg1)
 	ret0, _ := ret[0].(book.Book)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetBook indicates an expected call of GetBook.
-func (mr *MockServiceAPIMockRecorder) GetBook(arg0 any) *gomock.Call {
+func (mr *MockServiceAPIMockRecorder) GetBook(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBook", reflect.TypeOf((*MockServiceAPI)(nil).GetBook), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBook", reflect.TypeOf((*MockServiceAPI)(nil).GetBook), arg0, arg1)
 }
 
 // ListBooks mocks base method.
-func (m *MockServiceAPI) ListBooks(arg0 book.ListBooksRequest) (book.PagedBooks, error) {
+func (m *MockServiceAPI) ListBooks(arg0 context.Context, arg1 book.ListBooksRequest) (book.PagedBooks, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListBooks", arg0)
+	ret := m.ctrl.Call(m, "ListBooks", arg0, arg1)
 	ret0, _ := ret[0].(book.PagedBooks)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListBooks indicates an expected call of ListBooks.
-func (mr *MockServiceAPIMockRecorder) ListBooks(arg0 any) *gomock.Call {
+func (mr *MockServiceAPIMockRecorder) ListBooks(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBooks", reflect.TypeOf((*MockServiceAPI)(nil).ListBooks), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBooks", reflect.TypeOf((*MockServiceAPI)(nil).ListBooks), arg0, arg1)
 }
 
 // UpdateBook mocks base method.
-func (m *MockServiceAPI) UpdateBook(arg0 book.UpdateBookRequest) (book.Book, error) {
+func (m *MockServiceAPI) UpdateBook(arg0 context.Context, arg1 book.UpdateBookRequest) (book.Book, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateBook", arg0)
+	ret := m.ctrl.Call(m, "UpdateBook", arg0, arg1)
 	ret0, _ := ret[0].(book.Book)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateBook indicates an expected call of UpdateBook.
-func (mr *MockServiceAPIMockRecorder) UpdateBook(arg0 any) *gomock.Call {
+func (mr *MockServiceAPIMockRecorder) UpdateBook(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBook", reflect.TypeOf((*MockServiceAPI)(nil).UpdateBook), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBook", reflect.TypeOf((*MockServiceAPI)(nil).UpdateBook), arg0, arg1)
 }

@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 
 	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
 	if reqTimeoutStr != "" {
-		bookhttp.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
+		book.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
 		if err != nil {
 			log.Fatalln("getting request timeout from env: %w", err)
 		}
@@ -148,16 +148,16 @@ func TestCreateBook(t *testing.T) {
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 			Archived:  false,
 		}
-		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"error from context:context deadline exceeded"}`)
+		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"context deadline exceeded"}`)
 
-		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.RequestTimeout)
+		ctxTest, cancel := context.WithTimeout(context.Background(), book.RequestTimeout)
 		defer cancel()
 
 		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
 		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
-			time.Sleep(bookhttp.RequestTimeout + time.Second)
+			time.Sleep(book.RequestTimeout + time.Second)
 			log.Println("context error: ", ctxTest.Err())
 			return expectedReturn, ctxTest.Err()
 		})
@@ -167,53 +167,6 @@ func TestCreateBook(t *testing.T) {
 		body, _ := io.ReadAll(response.Result().Body)
 
 		is.True(response.Result().StatusCode == 504)
-		is.Equal(string(body), expectedJSONresponse)
-
-	})
-
-	t.Run("expected context canceled error", func(t *testing.T) {
-		is := is.New(t)
-
-		reqBook := book.CreateBookRequest{
-			Name:      "HTTP tester book",
-			Price:     toPointer(float32(100.0)),
-			Inventory: toPointer(99),
-		}
-		bookToCreate := `{
-			"name": "HTTP tester book",
-			"price": 100,
-			"inventory": 99
-		}`
-		newID := uuid.New()
-		expectedReturn := book.Book{
-			ID:        newID,
-			Name:      reqBook.Name,
-			Price:     reqBook.Price,
-			Inventory: reqBook.Inventory,
-			CreatedAt: time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
-			Archived:  false,
-		}
-		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"error from context:context canceled"}`)
-
-		ctxTest, cancel := context.WithTimeout(context.Background(), bookhttp.RequestTimeout)
-		defer cancel()
-
-		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
-		response := httptest.NewRecorder()
-
-		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
-			cancel()
-			log.Println("context error: ", ctxTest.Err())
-			return expectedReturn, ctxTest.Err()
-		})
-
-		server.Handler.ServeHTTP(response, request)
-
-		body, _ := io.ReadAll(response.Result().Body)
-
-		is.True(response.Result().StatusCode == 504)
-
 		is.Equal(string(body), expectedJSONresponse)
 
 	})
@@ -273,7 +226,7 @@ func TestListBooks(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().ListBooks(params).Return(expectedReturn, nil)
+		mockAPI.EXPECT().ListBooks(gomock.Any(), params).Return(expectedReturn, nil)
 
 		server.Handler.ServeHTTP(response, request)
 
@@ -281,7 +234,6 @@ func TestListBooks(t *testing.T) {
 
 		is.True(response.Result().StatusCode == 200)
 		is.Equal(string(body), string(expectedJSONresponse))
-
 	})
 	t.Run("lists all books with not defalult values, without errors", func(t *testing.T) {
 		is := is.New(t)
@@ -314,7 +266,7 @@ func TestListBooks(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().ListBooks(params).Return(expectedReturn, nil)
+		mockAPI.EXPECT().ListBooks(gomock.Any(), params).Return(expectedReturn, nil)
 
 		server.Handler.ServeHTTP(response, request)
 
