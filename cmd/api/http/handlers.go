@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -118,16 +117,6 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseJSON(w, http.StatusCreated, bookToResponse(storedBook))
-
-	go func() {
-		if NotificationEnabled {
-			_, err := http.Post(NotificationURL, "text/plain",
-				strings.NewReader(fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", storedBook.Name, *storedBook.Inventory)))
-			if err != nil {
-				log.Println(err)
-			}
-		}
-	}()
 }
 
 /* Validates the entry, then updates the asked book. */

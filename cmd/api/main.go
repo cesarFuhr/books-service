@@ -14,6 +14,7 @@ import (
 	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
 	bookhttp "github.com/books-service/cmd/api/http"
+	"github.com/books-service/cmd/api/notifications"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -47,13 +48,17 @@ func run() error {
 		return fmt.Errorf("migrating: %w", err)
 	}
 
-	bookService := book.NewService(store)
+	//get Ntfy notifications config:
+	enableNotifications := true             //GET FROM ENV!!!!!!!!!
+	notificationsTimeout := 2 * time.Second //GET FROM ENV!!!!!!!!
+	ntfy := notifications.NewNtfy(enableNotifications, notificationsTimeout)
+
+	//Init service with its dependencies:
+	bookService := book.NewService(store, ntfy)
 	bookHandler := bookhttp.NewBookHandler(bookService)
 
 	//create and init http server:
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
-
-	//get notifications config:
 
 	go func() {
 		err := server.ListenAndServe()
