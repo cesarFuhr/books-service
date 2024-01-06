@@ -16,17 +16,21 @@ import (
 )
 
 type BookHandler struct {
-	bookService book.ServiceAPI
+	bookService    book.ServiceAPI
+	requestTimeout time.Duration
 }
 
-func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
-	return &BookHandler{bookService: bookService}
+func NewBookHandler(bookService book.ServiceAPI, reqTimeout time.Duration) *BookHandler {
+	return &BookHandler{
+		bookService:    bookService,
+		requestTimeout: reqTimeout,
+	}
 }
 
 /* Addresses a call to "/books/(expected id here)" according to the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(book.RequestTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(h.requestTimeout))
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -50,7 +54,7 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 /* Addresses a call to "/books" according to the requested action.  */
 func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
 
-	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(book.RequestTimeout))
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(h.requestTimeout))
 	defer cancel()
 	r = r.WithContext(ctx)
 
@@ -421,6 +425,7 @@ func extractPageParams(query url.Values) (page, pageSize int, valid bool) {
 
 func handleError(err error, w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, context.DeadlineExceeded) {
+		log.Println(err)
 		responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
 		return
 	}

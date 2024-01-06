@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -21,26 +20,12 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func TestMain(m *testing.M) {
-	var err error
-
-	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
-	if reqTimeoutStr != "" {
-		book.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
-		if err != nil {
-			log.Fatalln("getting request timeout from env: %w", err)
-		}
-	}
-
-	os.Exit(m.Run())
-}
-
 func TestCreateBook(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockAPI := httpmock.NewMockServiceAPI(ctrl)
-	bookHandler := bookhttp.NewBookHandler(mockAPI)
-
+	reqTimeout := time.Duration(1) * time.Second
+	bookHandler := bookhttp.NewBookHandler(mockAPI, reqTimeout)
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
 	t.Run("creates a book without errors", func(t *testing.T) {
@@ -71,7 +56,7 @@ func TestCreateBook(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).Return(expectedReturn, nil) //Maybe we should change Any() for the right context, defined as global at the top
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).Return(expectedReturn, nil)
 
 		server.Handler.ServeHTTP(response, request)
 
@@ -150,14 +135,14 @@ func TestCreateBook(t *testing.T) {
 		}
 		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"context deadline exceeded"}`)
 
-		ctxTest, cancel := context.WithTimeout(context.Background(), book.RequestTimeout)
+		ctxTest, cancel := context.WithTimeout(context.Background(), reqTimeout)
 		defer cancel()
 
 		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
 		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
-			time.Sleep(book.RequestTimeout + time.Second)
+			time.Sleep(reqTimeout + time.Second)
 			log.Println("context error: ", ctxTest.Err())
 			return expectedReturn, ctxTest.Err()
 		})
@@ -175,7 +160,7 @@ func TestListBooks(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockAPI := httpmock.NewMockServiceAPI(ctrl)
-	bookHandler := bookhttp.NewBookHandler(mockAPI)
+	bookHandler := bookhttp.NewBookHandler(mockAPI, time.Duration(5)*time.Second)
 
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 

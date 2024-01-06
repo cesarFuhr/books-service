@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -16,20 +15,6 @@ import (
 )
 
 var ctx context.Context = context.Background()
-
-func TestMain(m *testing.M) {
-	var err error
-
-	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
-	if reqTimeoutStr != "" {
-		book.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
-		if err != nil {
-			log.Fatalln("getting request timeout from env: %w", err)
-		}
-	}
-
-	os.Exit(m.Run())
-}
 
 func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {
@@ -323,20 +308,21 @@ func TestListBooks(t *testing.T) {
 		}
 		itemsTotal := 30
 		results := []book.Book{}
-		ctxTest, cancel := context.WithTimeout(context.Background(), book.RequestTimeout)
+		reqTimeout := time.Duration(1) * time.Second
+		ctxTest, cancel := context.WithTimeout(context.Background(), reqTimeout)
 		defer cancel()
 
 		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
 
 		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).DoAndReturn(func(ctx context.Context, name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
-			time.Sleep(book.RequestTimeout + time.Second)
+			time.Sleep(reqTimeout + time.Second)
 			log.Println("context error: ", ctxTest.Err())
 			return results, ctxTest.Err()
 		})
 
 		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.Equal(pageOfBooksList, book.PagedBooks{})
-		is.Equal(err, context.DeadlineExceeded)
+		is.Equal(err.Error(), "timeout on call to ListBooks: "+context.DeadlineExceeded.Error())
 	})
 }
 

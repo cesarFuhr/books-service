@@ -47,19 +47,21 @@ func run() error {
 		return fmt.Errorf("migrating: %w", err)
 	}
 
-	bookService := book.NewService(store)
-	bookHandler := bookhttp.NewBookHandler(bookService)
-
-	//create and init http server:
-	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
-
+	//get request timeout from environment:
+	reqTimeout := time.Duration(5) * time.Second
 	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
 	if reqTimeoutStr != "" {
-		book.RequestTimeout, err = time.ParseDuration(reqTimeoutStr)
+		reqTimeout, err = time.ParseDuration(reqTimeoutStr)
 		if err != nil {
 			return fmt.Errorf("getting request timeout from env: %w", err)
 		}
 	}
+
+	bookService := book.NewService(store)
+	bookHandler := bookhttp.NewBookHandler(bookService, reqTimeout)
+
+	//create and init http server:
+	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
 	go func() {
 		err := server.ListenAndServe()

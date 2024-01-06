@@ -3,13 +3,12 @@ package book
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
 	"github.com/google/uuid"
 )
-
-var RequestTimeout = time.Duration(5) * time.Second
 
 type ServiceAPI interface {
 	ArchiveBook(ctx context.Context, id uuid.UUID) (Book, error)
@@ -109,7 +108,7 @@ func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (Paged
 	itemsTotal, err := s.repo.ListBooksTotals(ctx, params.Name, params.MinPrice, params.MaxPrice, params.Archived)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return PagedBooks{}, err
+			return PagedBooks{}, fmt.Errorf("timeout on call to ListBookTotals: %w ", err)
 		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
@@ -137,7 +136,7 @@ func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (Paged
 	returnedBooks, err := s.repo.ListBooks(ctx, params.Name, params.MinPrice, params.MaxPrice, params.SortBy, params.SortDirection, params.Archived, params.Page, params.PageSize)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return PagedBooks{}, err
+			return PagedBooks{}, fmt.Errorf("timeout on call to ListBooks: %w", err)
 		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,

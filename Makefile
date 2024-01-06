@@ -7,7 +7,6 @@ down:
 test: test-env-up
 	DATABASE_URL='postgres://root:root@localhost:5432/booksdb?sslmode=disable' \
 	DATABASE_MIGRATIONS_PATH='../../../migrations' \
-	HTTP_REQUEST_TIMEOUT='1s' \
 	go test -p=1 ./...
 
 test-env-up:
