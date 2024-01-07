@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"math"
 	"time"
 
@@ -29,8 +28,7 @@ type Repository interface {
 }
 
 type NotifierAPI interface {
-	//Notificate(ctx context.Context, NotificationURL string, NotificationMsg string) error
-	CreatedBookNTF(title string, inventory int) error
+	CreatedBookNTF(title string, inventory int)
 }
 
 type Service struct {
@@ -70,12 +68,7 @@ func (s *Service) CreateBook(ctx context.Context, req CreateBookRequest) (Book, 
 
 	b, err := s.repo.CreateBook(ctx, newBook)
 	if err == nil {
-		defer func() {
-			err := s.ntf.CreatedBookNTF(req.Name, *req.Inventory)
-			if err != nil {
-				log.Println("error from CreateBookNTF: " + err.Error())
-			}
-		}()
+		defer s.ntf.CreatedBookNTF(req.Name, *req.Inventory)
 	}
 	return b, err
 }
