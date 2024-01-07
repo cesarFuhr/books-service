@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -49,8 +50,22 @@ func run() error {
 	}
 
 	//get Ntfy notifications config:
-	enableNotifications := true             //GET FROM ENV!!!!!!!!!
-	notificationsTimeout := 2 * time.Second //GET FROM ENV!!!!!!!!
+	enableNotifications := true
+	enableNotificationsStr := os.Getenv("ENABLE_NOTIFICATIONS")
+	if enableNotificationsStr != "" {
+		enableNotifications, err = strconv.ParseBool(enableNotificationsStr)
+		if err != nil {
+			return fmt.Errorf("getting notifications enabler flag from env: %w", err)
+		}
+	}
+	notificationsTimeout := 5 * time.Second
+	notificationsTimeoutStr := os.Getenv("NOTIFICATIONS_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	if notificationsTimeoutStr != "" {
+		notificationsTimeout, err = time.ParseDuration(notificationsTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("getting notifications timeout from env: %w", err)
+		}
+	}
 	ntfy := notifications.NewNtfy(enableNotifications, notificationsTimeout)
 
 	//Init service with its dependencies:

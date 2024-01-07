@@ -2,22 +2,36 @@ package book_test
 
 import (
 	"errors"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/books-service/cmd/api/book"
 	bookmock "github.com/books-service/cmd/api/book/mocks"
+	"github.com/books-service/cmd/api/notifications"
 	"github.com/google/uuid"
 	"github.com/matryer/is"
 	gomock "go.uber.org/mock/gomock"
 )
 
+var ntfy *notifications.Ntfy
+
+func TestMain(m *testing.M) {
+	//temporary copied from main.go:
+	enableNotifications := true
+	notificationsTimeout := 1 * time.Second
+	ntfy = notifications.NewNtfy(enableNotifications, notificationsTimeout)
+
+	os.Exit(m.Run())
+}
+
 func TestCreateBook(t *testing.T) {
+
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mS := book.NewService(mockRepo, ntfy)
 
 		reqBook := book.CreateBookRequest{
 			Name:      "Service tester book",
@@ -51,7 +65,7 @@ func TestUpdateBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mS := book.NewService(mockRepo, ntfy)
 
 		reqBook := book.UpdateBookRequest{
 			ID:        uuid.New(),
@@ -84,7 +98,7 @@ func TestArchiveBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mS := book.NewService(mockRepo, ntfy)
 
 		id := uuid.New()
 
@@ -100,7 +114,7 @@ func TestGetBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mS := book.NewService(mockRepo, ntfy)
 
 		id := uuid.New()
 
@@ -115,7 +129,7 @@ func TestListBooks(t *testing.T) {
 	is := is.New(t)
 	ctrl := gomock.NewController(t)
 	mockRepo := bookmock.NewMockRepository(ctrl)
-	mS := book.NewService(mockRepo)
+	mS := book.NewService(mockRepo, ntfy)
 	t.Run("list first page of stored books without errors, paginated with exact division", func(t *testing.T) {
 		//Setting specific subtest values:
 		reqBooks := book.ListBooksRequest{
