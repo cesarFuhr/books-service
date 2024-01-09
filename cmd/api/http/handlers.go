@@ -240,18 +240,19 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 
 	pagedBooks, err := h.bookService.ListBooks(r.Context(), params)
 	if err != nil {
+		if errors.Is(err, book.ErrResponseQueryPageOutOfRange) {
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
+			return
+		}
 		if errors.Is(err, context.DeadlineExceeded) {
 			responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
 			return
 		}
-		if errors.Is(err, book.ErrResponseFromRespository) {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		responseJSON(w, http.StatusBadRequest, err)
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	responseJSON(w, http.StatusOK, pagedBooksToResponse(pagedBooks))
 }
 

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -123,29 +122,13 @@ func TestCreateBook(t *testing.T) {
 			"price": 100,
 			"inventory": 99
 		}`
-		newID := uuid.New()
-		expectedReturn := book.Book{
-			ID:        newID,
-			Name:      reqBook.Name,
-			Price:     reqBook.Price,
-			Inventory: reqBook.Inventory,
-			CreatedAt: time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
-			Archived:  false,
-		}
+
 		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"context deadline exceeded"}`)
 
-		ctxTest, cancel := context.WithTimeout(context.Background(), reqTimeout)
-		defer cancel()
-
-		request, _ := http.NewRequestWithContext(ctxTest, http.MethodPost, "/books", strings.NewReader(bookToCreate))
+		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).DoAndReturn(func(ctx context.Context, req book.CreateBookRequest) (book.Book, error) {
-			time.Sleep(reqTimeout + time.Second)
-			log.Println("context error: ", ctxTest.Err())
-			return expectedReturn, ctxTest.Err()
-		})
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).Return(book.Book{}, context.DeadlineExceeded)
 
 		server.Handler.ServeHTTP(response, request)
 
