@@ -3,7 +3,6 @@ package book_test
 import (
 	"context"
 	"errors"
-	"log"
 	"testing"
 	"time"
 
@@ -308,17 +307,10 @@ func TestListBooks(t *testing.T) {
 		}
 		itemsTotal := 30
 		results := []book.Book{}
-		reqTimeout := time.Duration(1) * time.Second
-		ctxTest, cancel := context.WithTimeout(context.Background(), reqTimeout)
-		defer cancel()
 
 		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
 
-		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).DoAndReturn(func(ctx context.Context, name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
-			time.Sleep(reqTimeout + time.Second)
-			log.Println("context error: ", ctxTest.Err())
-			return results, ctxTest.Err()
-		})
+		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, context.DeadlineExceeded)
 
 		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.Equal(pageOfBooksList, book.PagedBooks{})
