@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -29,21 +30,20 @@ func NewNtfy(enableNotifications bool, notificationsTimeout time.Duration) *Ntfy
 	}
 }
 
-func (ntf *Ntfy) CreatedBookNTF(title string, inventory int) {
+func (ntf *Ntfy) BookCreated(title string, inventory int) error {
 	if ntf.enabled {
 		ctx, cancel := context.WithTimeout(context.Background(), ntf.timeout)
 		defer cancel()
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, ntf.url+"_New_book_created", strings.NewReader(fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory)))
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, ntf.url+"/New_book_created", strings.NewReader(fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory)))
 		if err != nil {
-			log.Println("error delivering message (" + fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory) + ") to topic (" + ntf.url + "_New_book_created): " + err.Error())
-			return
+			return fmt.Errorf("error delivering message ("+fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory)+") to topic ("+ntf.url+"/New_book_created): %w", err)
 		}
 		_, err = ntf.client.Do(req)
 		if err != nil {
-			log.Println("error delivering message (" + fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory) + ") to topic (" + ntf.url + "_New_book_created): " + err.Error())
-			return
+			return fmt.Errorf("error delivering message ("+fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory)+") to topic ("+ntf.url+"/New_book_created): %w", err)
 		}
 	}
+	return errors.New("notifications not enabled")
 }
 
 func randomString(length int) string {

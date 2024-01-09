@@ -59,7 +59,7 @@ func run() error {
 		}
 	}
 	notificationsTimeout := 5 * time.Second
-	notificationsTimeoutStr := os.Getenv("NOTIFICATIONS_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	notificationsTimeoutStr := os.Getenv("SERVER_WAITS_NOTIFICATIONS_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
 	if notificationsTimeoutStr != "" {
 		notificationsTimeout, err = time.ParseDuration(notificationsTimeoutStr)
 		if err != nil {

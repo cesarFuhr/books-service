@@ -1,6 +1,7 @@
 package book
 
 import (
+	"log"
 	"math"
 	"time"
 
@@ -24,16 +25,16 @@ type Repository interface {
 	UpdateBook(bookEntry Book) (Book, error)
 }
 
-type NotifierAPI interface {
-	CreatedBookNTF(title string, inventory int)
+type Notifier interface {
+	BookCreated(title string, inventory int) error
 }
 
 type Service struct {
 	repo Repository
-	ntf  NotifierAPI
+	ntf  Notifier
 }
 
-func NewService(repo Repository, ntf NotifierAPI) *Service {
+func NewService(repo Repository, ntf Notifier) *Service {
 	return &Service{
 		repo: repo,
 		ntf:  ntf,
@@ -65,7 +66,10 @@ func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
 
 	b, err := s.repo.CreateBook(newBook)
 	if err == nil {
-		defer s.ntf.CreatedBookNTF(req.Name, *req.Inventory)
+		go func() {
+			err := s.ntf.BookCreated(req.Name, *req.Inventory)
+			log.Println(err)
+		}()
 	}
 	return b, err
 }
