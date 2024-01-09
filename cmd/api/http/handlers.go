@@ -15,9 +15,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var NotificationEnabled bool
-var NotificationURL string
-
 type BookHandler struct {
 	bookService    book.ServiceAPI
 	requestTimeout time.Duration
