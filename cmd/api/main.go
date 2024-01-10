@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -66,7 +67,13 @@ func run() error {
 			return fmt.Errorf("getting notifications timeout from env: %w", err)
 		}
 	}
-	ntfy := notifications.NewNtfy(enableNotifications, notificationsTimeout)
+	notificationsBaseURL := os.Getenv("NOTIFICATIONS_BASE_URL")
+	found := strings.HasPrefix(notificationsBaseURL, "https://ntfy.sh/")
+	if !found {
+		return errors.New("notifications base url must be: https://ntfy.sh/ + some randomic part")
+	}
+
+	ntfy := notifications.NewNtfy(enableNotifications, notificationsTimeout, notificationsBaseURL)
 
 	//Init service with its dependencies:
 	bookService := book.NewService(store, ntfy)

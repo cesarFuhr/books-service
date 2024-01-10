@@ -18,9 +18,10 @@ var ntfy *notifications.Ntfy
 
 func TestMain(m *testing.M) {
 	//temporary copied from main.go:
+	notificationsBaseURL := "someURL"
 	enableNotifications := true
 	notificationsTimeout := 1 * time.Second
-	ntfy = notifications.NewNtfy(enableNotifications, notificationsTimeout)
+	ntfy = notifications.NewNtfy(enableNotifications, notificationsTimeout, notificationsBaseURL)
 
 	os.Exit(m.Run())
 }
