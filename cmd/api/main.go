@@ -59,7 +59,15 @@ func run() error {
 			return fmt.Errorf("getting notifications enabler flag from env: %w", err)
 		}
 	}
-	notificationsTimeout := 5 * time.Second
+	notificationsBaseURL := os.Getenv("NOTIFICATIONS_BASE_URL")
+	found := strings.HasPrefix(notificationsBaseURL, "https://ntfy.sh/")
+	if !found {
+		return errors.New("notifications base url must be: https://ntfy.sh/ + some randomic part")
+	}
+
+	ntfy := notifications.NewNtfy(enableNotifications, notificationsBaseURL)
+
+	notificationsTimeout := 2 * time.Second
 	notificationsTimeoutStr := os.Getenv("SERVER_WAITS_NOTIFICATIONS_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
 	if notificationsTimeoutStr != "" {
 		notificationsTimeout, err = time.ParseDuration(notificationsTimeoutStr)
@@ -67,16 +75,9 @@ func run() error {
 			return fmt.Errorf("getting notifications timeout from env: %w", err)
 		}
 	}
-	notificationsBaseURL := os.Getenv("NOTIFICATIONS_BASE_URL")
-	found := strings.HasPrefix(notificationsBaseURL, "https://ntfy.sh/")
-	if !found {
-		return errors.New("notifications base url must be: https://ntfy.sh/ + some randomic part")
-	}
-
-	ntfy := notifications.NewNtfy(enableNotifications, notificationsTimeout, notificationsBaseURL)
 
 	//Init service with its dependencies:
-	bookService := book.NewService(store, ntfy)
+	bookService := book.NewService(store, ntfy, notificationsTimeout)
 	bookHandler := bookhttp.NewBookHandler(bookService)
 
 	//create and init http server:

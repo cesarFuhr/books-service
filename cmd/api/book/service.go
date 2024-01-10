@@ -1,6 +1,7 @@
 package book
 
 import (
+	"context"
 	"log"
 	"math"
 	"time"
@@ -26,18 +27,20 @@ type Repository interface {
 }
 
 type Notifier interface {
-	BookCreated(title string, inventory int) error
+	BookCreated(ctx context.Context, title string, inventory int) error
 }
 
 type Service struct {
-	repo Repository
-	ntf  Notifier
+	repo                 Repository
+	ntf                  Notifier
+	notificationsTimeout time.Duration
 }
 
-func NewService(repo Repository, ntf Notifier) *Service {
+func NewService(repo Repository, ntf Notifier, notificationsTimeout time.Duration) *Service {
 	return &Service{
-		repo: repo,
-		ntf:  ntf,
+		repo:                 repo,
+		ntf:                  ntf,
+		notificationsTimeout: notificationsTimeout,
 	}
 }
 
@@ -67,7 +70,9 @@ func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
 	b, err := s.repo.CreateBook(newBook)
 	if err == nil {
 		go func() {
-			err := s.ntf.BookCreated(req.Name, *req.Inventory)
+			ctx, cancel := context.WithTimeout(context.Background(), s.notificationsTimeout)
+			defer cancel()
+			err := s.ntf.BookCreated(ctx, req.Name, *req.Inventory)
 			log.Println(err)
 		}()
 	}

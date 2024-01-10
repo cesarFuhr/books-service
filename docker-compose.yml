@@ -15,8 +15,9 @@ services:
       DATABASE_URL: "postgres://postgres:chevas@db:5432/booksdb?sslmode=disable"
       DATABASE_MIGRATIONS_PATH: "/src/migrations"
       SERVICE_SHUTDOWN_TIMEOUT: "10s"
-      NOTIFICATIONS_TIMEOUT: "5s"
       ENABLE_NOTIFICATIONS: "true"
+      SERVER_WAITS_NOTIFICATIONS_TIMEOUT: "2s"
+      NOTIFICATIONS_BASE_URL: "https://ntfy.sh/A3luOh46"
       
   db:
     image: postgres:14.6-bullseye

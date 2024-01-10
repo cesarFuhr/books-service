@@ -15,13 +15,13 @@ import (
 )
 
 var ntfy *notifications.Ntfy
+var notificationsTimeout = 1 * time.Second
 
 func TestMain(m *testing.M) {
 	//temporary copied from main.go:
 	notificationsBaseURL := "someURL"
 	enableNotifications := true
-	notificationsTimeout := 1 * time.Second
-	ntfy = notifications.NewNtfy(enableNotifications, notificationsTimeout, notificationsBaseURL)
+	ntfy = notifications.NewNtfy(enableNotifications, notificationsBaseURL)
 
 	os.Exit(m.Run())
 }
@@ -32,7 +32,7 @@ func TestCreateBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo, ntfy)
+		mS := book.NewService(mockRepo, ntfy, notificationsTimeout)
 
 		reqBook := book.CreateBookRequest{
 			Name:      "Service tester book",
@@ -66,7 +66,7 @@ func TestUpdateBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo, ntfy)
+		mS := book.NewService(mockRepo, ntfy, notificationsTimeout)
 
 		reqBook := book.UpdateBookRequest{
 			ID:        uuid.New(),
@@ -99,7 +99,7 @@ func TestArchiveBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo, ntfy)
+		mS := book.NewService(mockRepo, ntfy, notificationsTimeout)
 
 		id := uuid.New()
 
@@ -115,7 +115,7 @@ func TestGetBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo, ntfy)
+		mS := book.NewService(mockRepo, ntfy, notificationsTimeout)
 
 		id := uuid.New()
 
@@ -130,7 +130,7 @@ func TestListBooks(t *testing.T) {
 	is := is.New(t)
 	ctrl := gomock.NewController(t)
 	mockRepo := bookmock.NewMockRepository(ctrl)
-	mS := book.NewService(mockRepo, ntfy)
+	mS := book.NewService(mockRepo, ntfy, notificationsTimeout)
 	t.Run("list first page of stored books without errors, paginated with exact division", func(t *testing.T) {
 		//Setting specific subtest values:
 		reqBooks := book.ListBooksRequest{
