@@ -18,6 +18,8 @@ services:
       HTTP_REQUEST_TIMEOUT: "5s"
       NOTIFICATIONS_TIMEOUT: "5s"
       ENABLE_NOTIFICATIONS: "true"
+      SERVER_WAITS_NOTIFICATIONS_TIMEOUT: "2s"
+      NOTIFICATIONS_BASE_URL: "https://ntfy.sh/A3luOh46"
       
   db:
     image: postgres:14.6-bullseye
