@@ -1,6 +1,7 @@
 package book_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/matryer/is"
 	gomock "go.uber.org/mock/gomock"
 )
+
+var ctx context.Context = context.Background()
 
 func TestCreateBook(t *testing.T) {
 	t.Run("creates a book without errors", func(t *testing.T) {
@@ -25,7 +28,7 @@ func TestCreateBook(t *testing.T) {
 			Inventory: toPointer(99),
 		}
 
-		mockRepo.EXPECT().CreateBook(gomock.Any()).DoAndReturn(func(b book.Book) (book.Book, error) {
+		mockRepo.EXPECT().CreateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, b book.Book) (book.Book, error) {
 			is.True(b.ID != uuid.Nil)
 			is.Equal(b.Name, reqBook.Name)
 			is.Equal(b.Price, reqBook.Price)
@@ -36,7 +39,7 @@ func TestCreateBook(t *testing.T) {
 			return b, nil
 		})
 
-		createdBook, err := mS.CreateBook(reqBook)
+		createdBook, err := mS.CreateBook(ctx, reqBook)
 		is.NoErr(err)
 		is.True(createdBook.ID != uuid.Nil)
 		is.Equal(createdBook.Name, reqBook.Name)
@@ -60,7 +63,7 @@ func TestUpdateBook(t *testing.T) {
 			Inventory: toPointer(99),
 		}
 
-		mockRepo.EXPECT().UpdateBook(gomock.Any()).DoAndReturn(func(b book.Book) (book.Book, error) {
+		mockRepo.EXPECT().UpdateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, b book.Book) (book.Book, error) {
 			is.Equal(b.ID, reqBook.ID)
 			is.Equal(b.Name, reqBook.Name)
 			is.Equal(b.Price, reqBook.Price)
@@ -69,7 +72,7 @@ func TestUpdateBook(t *testing.T) {
 			return b, nil
 		})
 
-		updatedBook, err := mS.UpdateBook(reqBook)
+		updatedBook, err := mS.UpdateBook(ctx, reqBook)
 		is.NoErr(err)
 		is.Equal(updatedBook.ID, reqBook.ID)
 		is.Equal(updatedBook.Name, reqBook.Name)
@@ -88,9 +91,9 @@ func TestArchiveBook(t *testing.T) {
 
 		id := uuid.New()
 
-		mockRepo.EXPECT().SetBookArchiveStatus(id, true)
+		mockRepo.EXPECT().SetBookArchiveStatus(gomock.Any(), id, true)
 
-		_, err := mS.ArchiveBook(id)
+		_, err := mS.ArchiveBook(ctx, id)
 		is.NoErr(err)
 	})
 }
@@ -104,9 +107,9 @@ func TestGetBook(t *testing.T) {
 
 		id := uuid.New()
 
-		mockRepo.EXPECT().GetBookByID(id)
+		mockRepo.EXPECT().GetBookByID(gomock.Any(), id)
 
-		_, err := mS.GetBook(id)
+		_, err := mS.GetBook(ctx, id)
 		is.NoErr(err)
 	})
 }
@@ -133,10 +136,10 @@ func TestListBooks(t *testing.T) {
 		results := []book.Book{}
 		//-------------------------------
 
-		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
-		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
 
-		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.NoErr(err)
 		is.Equal(pageOfBooksList.PageCurrent, reqBooks.Page)
 		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
@@ -162,10 +165,10 @@ func TestListBooks(t *testing.T) {
 		results := []book.Book{}
 		//-------------------------------
 
-		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
-		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
 
-		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.NoErr(err)
 		is.Equal(pageOfBooksList.PageCurrent, reqBooks.Page)
 		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
@@ -191,10 +194,10 @@ func TestListBooks(t *testing.T) {
 		results := []book.Book{}
 		//-------------------------------
 
-		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
-		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
 
-		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.NoErr(err)
 		is.Equal(pageOfBooksList.PageCurrent, reqBooks.Page)
 		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
@@ -220,11 +223,11 @@ func TestListBooks(t *testing.T) {
 		//results := []book.Book{}
 		//-------------------------------
 
-		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
 		//Its expected that the method returns before calling ListBooks due to the pagination error.
 		//mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
 
-		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.True(errors.Is(err, book.ErrResponseQueryPageOutOfRange))
 		is.Equal(pageOfBooksList, book.PagedBooks{})
 	})
@@ -246,11 +249,11 @@ func TestListBooks(t *testing.T) {
 		results := []book.Book{}
 		//-------------------------------
 
-		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
 		//Its expected that the method returns before calling ListBooks since there is no books to list.
 		//mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, nil)
 
-		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.NoErr(err)
 		is.Equal(pageOfBooksList.PageCurrent, 0)
 		is.Equal(pageOfBooksList.PageTotal, expectedPagesTotal)
@@ -281,13 +284,37 @@ func TestListBooks(t *testing.T) {
 		}
 		//-------------------------------
 
-		mockRepo.EXPECT().ListBooksTotals(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
 
-		mockRepo.EXPECT().ListBooks(reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, dbErr)
+		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, dbErr)
 
-		pageOfBooksList, err := mS.ListBooks(reqBooks)
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.Equal(pageOfBooksList, book.PagedBooks{})
 		is.Equal(err, errRepo)
+	})
+
+	t.Run("expected context timeout error", func(t *testing.T) {
+		//Setting specific subtest values:
+		reqBooks := book.ListBooksRequest{
+			Name:          "",
+			MinPrice:      0.0,
+			MaxPrice:      book.PriceMax,
+			SortBy:        "name",
+			SortDirection: "asc",
+			Archived:      true,
+			Page:          1,
+			PageSize:      10,
+		}
+		itemsTotal := 30
+		results := []book.Book{}
+
+		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
+
+		mockRepo.EXPECT().ListBooks(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.SortBy, reqBooks.SortDirection, reqBooks.Archived, reqBooks.Page, reqBooks.PageSize).Return(results, context.DeadlineExceeded)
+
+		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
+		is.Equal(pageOfBooksList, book.PagedBooks{})
+		is.Equal(err.Error(), "timeout on call to ListBooks: "+context.DeadlineExceeded.Error())
 	})
 }
 

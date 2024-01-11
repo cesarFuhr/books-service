@@ -1,6 +1,7 @@
 package http_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,9 +23,10 @@ func TestCreateBook(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockAPI := httpmock.NewMockServiceAPI(ctrl)
-	bookHandler := bookhttp.NewBookHandler(mockAPI)
-
+	reqTimeout := time.Duration(1) * time.Second
+	bookHandler := bookhttp.NewBookHandler(mockAPI, reqTimeout)
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
+
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 
@@ -53,7 +55,7 @@ func TestCreateBook(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().CreateBook(reqBook).Return(expectedReturn, nil)
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).Return(expectedReturn, nil)
 
 		server.Handler.ServeHTTP(response, request)
 
@@ -106,12 +108,42 @@ func TestCreateBook(t *testing.T) {
 		is.Equal(string(body), expectedJSONresponse)
 
 	})
+
+	t.Run("expected context timeout error", func(t *testing.T) {
+		is := is.New(t)
+
+		reqBook := book.CreateBookRequest{
+			Name:      "HTTP tester book",
+			Price:     toPointer(float32(100.0)),
+			Inventory: toPointer(99),
+		}
+		bookToCreate := `{
+			"name": "HTTP tester book",
+			"price": 100,
+			"inventory": 99
+		}`
+
+		expectedJSONresponse := fmt.Sprintln(`{"error_code":109,"error_message":"context deadline exceeded"}`)
+
+		request, _ := http.NewRequest(http.MethodPost, "/books", strings.NewReader(bookToCreate))
+		response := httptest.NewRecorder()
+
+		mockAPI.EXPECT().CreateBook(gomock.Any(), reqBook).Return(book.Book{}, context.DeadlineExceeded)
+
+		server.Handler.ServeHTTP(response, request)
+
+		body, _ := io.ReadAll(response.Result().Body)
+
+		is.True(response.Result().StatusCode == 504)
+		is.Equal(string(body), expectedJSONresponse)
+
+	})
 }
 func TestListBooks(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	mockAPI := httpmock.NewMockServiceAPI(ctrl)
-	bookHandler := bookhttp.NewBookHandler(mockAPI)
+	bookHandler := bookhttp.NewBookHandler(mockAPI, time.Duration(5)*time.Second)
 
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)
 
@@ -162,7 +194,7 @@ func TestListBooks(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().ListBooks(params).Return(expectedReturn, nil)
+		mockAPI.EXPECT().ListBooks(gomock.Any(), params).Return(expectedReturn, nil)
 
 		server.Handler.ServeHTTP(response, request)
 
@@ -170,7 +202,6 @@ func TestListBooks(t *testing.T) {
 
 		is.True(response.Result().StatusCode == 200)
 		is.Equal(string(body), string(expectedJSONresponse))
-
 	})
 	t.Run("lists all books with not defalult values, without errors", func(t *testing.T) {
 		is := is.New(t)
@@ -203,7 +234,7 @@ func TestListBooks(t *testing.T) {
 		request, _ := http.NewRequest(http.MethodGet, url, nil)
 		response := httptest.NewRecorder()
 
-		mockAPI.EXPECT().ListBooks(params).Return(expectedReturn, nil)
+		mockAPI.EXPECT().ListBooks(gomock.Any(), params).Return(expectedReturn, nil)
 
 		server.Handler.ServeHTTP(response, request)
 

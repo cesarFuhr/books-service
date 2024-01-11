@@ -1,6 +1,9 @@
 package book
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -8,20 +11,20 @@ import (
 )
 
 type ServiceAPI interface {
-	ArchiveBook(id uuid.UUID) (Book, error)
-	CreateBook(req CreateBookRequest) (Book, error)
-	GetBook(id uuid.UUID) (Book, error)
-	ListBooks(params ListBooksRequest) (PagedBooks, error)
-	UpdateBook(req UpdateBookRequest) (Book, error)
+	ArchiveBook(ctx context.Context, id uuid.UUID) (Book, error)
+	CreateBook(ctx context.Context, req CreateBookRequest) (Book, error)
+	GetBook(ctx context.Context, id uuid.UUID) (Book, error)
+	ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error)
+	UpdateBook(ctx context.Context, req UpdateBookRequest) (Book, error)
 }
 
 type Repository interface {
-	SetBookArchiveStatus(id uuid.UUID, archived bool) (Book, error)
-	CreateBook(bookEntry Book) (Book, error)
-	GetBookByID(id uuid.UUID) (Book, error)
-	ListBooks(name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]Book, error)
-	ListBooksTotals(name string, minPrice32, maxPrice32 float32, archived bool) (int, error)
-	UpdateBook(bookEntry Book) (Book, error)
+	SetBookArchiveStatus(ctx context.Context, id uuid.UUID, archived bool) (Book, error)
+	CreateBook(ctx context.Context, bookEntry Book) (Book, error)
+	GetBookByID(ctx context.Context, id uuid.UUID) (Book, error)
+	ListBooks(ctx context.Context, name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]Book, error)
+	ListBooksTotals(ctx context.Context, name string, minPrice32, maxPrice32 float32, archived bool) (int, error)
+	UpdateBook(ctx context.Context, bookEntry Book) (Book, error)
 }
 
 type Service struct {
@@ -32,9 +35,9 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) ArchiveBook(id uuid.UUID) (Book, error) {
+func (s *Service) ArchiveBook(ctx context.Context, id uuid.UUID) (Book, error) {
 	archived := true
-	return s.repo.SetBookArchiveStatus(id, archived)
+	return s.repo.SetBookArchiveStatus(ctx, id, archived)
 }
 
 type CreateBookRequest struct {
@@ -43,7 +46,7 @@ type CreateBookRequest struct {
 	Inventory *int
 }
 
-func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
+func (s *Service) CreateBook(ctx context.Context, req CreateBookRequest) (Book, error) {
 	createdAt := time.Now().UTC().Round(time.Millisecond) //Atribute creating and updating time to the new entry. UpdateAt can change later.
 	newBook := Book{
 		ID:        uuid.New(), //Atribute an ID to the entry
@@ -54,7 +57,7 @@ func (s *Service) CreateBook(req CreateBookRequest) (Book, error) {
 		UpdatedAt: createdAt,
 		//Archived is set to false by defalut inside database
 	}
-	return s.repo.CreateBook(newBook)
+	return s.repo.CreateBook(ctx, newBook)
 }
 
 type UpdateBookRequest struct {
@@ -64,7 +67,7 @@ type UpdateBookRequest struct {
 	Inventory *int
 }
 
-func (s *Service) UpdateBook(req UpdateBookRequest) (Book, error) {
+func (s *Service) UpdateBook(ctx context.Context, req UpdateBookRequest) (Book, error) {
 	updatedAt := time.Now().UTC().Round(time.Millisecond) //Atribute a new updating time to the new entry.
 	updateBook := Book{
 		ID:        req.ID,
@@ -75,11 +78,11 @@ func (s *Service) UpdateBook(req UpdateBookRequest) (Book, error) {
 		UpdatedAt: updatedAt,
 		//Archived will not change
 	}
-	return s.repo.UpdateBook(updateBook)
+	return s.repo.UpdateBook(ctx, updateBook)
 }
 
-func (s *Service) GetBook(id uuid.UUID) (Book, error) {
-	return s.repo.GetBookByID(id)
+func (s *Service) GetBook(ctx context.Context, id uuid.UUID) (Book, error) {
+	return s.repo.GetBookByID(ctx, id)
 }
 
 type PagedBooks struct {
@@ -101,9 +104,12 @@ type ListBooksRequest struct {
 	PageSize      int
 }
 
-func (s *Service) ListBooks(params ListBooksRequest) (PagedBooks, error) {
-	itemsTotal, err := s.repo.ListBooksTotals(params.Name, params.MinPrice, params.MaxPrice, params.Archived)
+func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error) {
+	itemsTotal, err := s.repo.ListBooksTotals(ctx, params.Name, params.MinPrice, params.MaxPrice, params.Archived)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return PagedBooks{}, fmt.Errorf("timeout on call to ListBookTotals: %w ", err)
+		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
 			Message: ErrResponseFromRespository.Message + err.Error(),
@@ -127,8 +133,11 @@ func (s *Service) ListBooks(params ListBooksRequest) (PagedBooks, error) {
 	}
 
 	//Ask filtered list to db:
-	returnedBooks, err := s.repo.ListBooks(params.Name, params.MinPrice, params.MaxPrice, params.SortBy, params.SortDirection, params.Archived, params.Page, params.PageSize)
+	returnedBooks, err := s.repo.ListBooks(ctx, params.Name, params.MinPrice, params.MaxPrice, params.SortBy, params.SortDirection, params.Archived, params.Page, params.PageSize)
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return PagedBooks{}, fmt.Errorf("timeout on call to ListBooks: %w", err)
+		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
 			Message: ErrResponseFromRespository.Message + err.Error(),

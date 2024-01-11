@@ -16,9 +16,6 @@ import (
 	bookhttp "github.com/books-service/cmd/api/http"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-
-	_ "github.com/lib/pq"
 )
 
 func main() {
@@ -47,8 +44,18 @@ func run() error {
 		return fmt.Errorf("migrating: %w", err)
 	}
 
+	//get request timeout from environment:
+	reqTimeout := time.Duration(5) * time.Second
+	reqTimeoutStr := os.Getenv("HTTP_REQUEST_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	if reqTimeoutStr != "" {
+		reqTimeout, err = time.ParseDuration(reqTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("getting request timeout from env: %w", err)
+		}
+	}
+
 	bookService := book.NewService(store)
-	bookHandler := bookhttp.NewBookHandler(bookService)
+	bookHandler := bookhttp.NewBookHandler(bookService, reqTimeout)
 
 	//create and init http server:
 	server := bookhttp.NewServer(bookhttp.ServerConfig{Port: 8080}, bookHandler)

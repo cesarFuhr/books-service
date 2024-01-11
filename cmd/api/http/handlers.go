@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -8,21 +9,31 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/google/uuid"
 )
 
 type BookHandler struct {
-	bookService book.ServiceAPI
+	bookService    book.ServiceAPI
+	requestTimeout time.Duration
 }
 
-func NewBookHandler(bookService book.ServiceAPI) *BookHandler {
-	return &BookHandler{bookService: bookService}
+func NewBookHandler(bookService book.ServiceAPI, reqTimeout time.Duration) *BookHandler {
+	return &BookHandler{
+		bookService:    bookService,
+		requestTimeout: reqTimeout,
+	}
 }
 
 /* Addresses a call to "/books/(expected id here)" according to the requested action.  */
 func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
+
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(h.requestTimeout))
+	defer cancel()
+	r = r.WithContext(ctx)
+
 	method := r.Method
 	switch method {
 	case http.MethodGet:
@@ -42,6 +53,11 @@ func (h *BookHandler) bookById(w http.ResponseWriter, r *http.Request) {
 
 /* Addresses a call to "/books" according to the requested action.  */
 func (h *BookHandler) books(w http.ResponseWriter, r *http.Request) {
+
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(h.requestTimeout))
+	defer cancel()
+	r = r.WithContext(ctx)
+
 	method := r.Method
 	switch method {
 	case http.MethodGet:
@@ -63,15 +79,9 @@ func (h *BookHandler) archiveBook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	archivedBook, err := h.bookService.ArchiveBook(id)
+	archivedBook, err := h.bookService.ArchiveBook(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, book.ErrResponseBookNotFound) {
-			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		handleError(err, w, r)
 		return
 	}
 
@@ -106,10 +116,9 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 
 	reqBook := bookToCreateReq(bookEntry)
 
-	storedBook, err := h.bookService.CreateBook(reqBook)
+	storedBook, err := h.bookService.CreateBook(r.Context(), reqBook)
 	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		handleError(err, w, r)
 		return
 	}
 
@@ -143,15 +152,9 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 
 	reqBook := bookToUpdateReq(bookEntry, id)
 
-	updatedBook, err := h.bookService.UpdateBook(reqBook) //Update the stored book
+	updatedBook, err := h.bookService.UpdateBook(r.Context(), reqBook) //Update the stored book
 	if err != nil {
-		if errors.Is(err, book.ErrResponseBookNotFound) {
-			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		handleError(err, w, r)
 		return
 	}
 
@@ -165,15 +168,9 @@ func (h *BookHandler) getBookById(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	//Searching for that ID on Book Service:
-	returnedBook, err := h.bookService.GetBook(id)
+	returnedBook, err := h.bookService.GetBook(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, book.ErrResponseBookNotFound) {
-			log.Println(err)
-			w.WriteHeader(http.StatusNotFound)
-			return
-		}
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		handleError(err, w, r)
 		return
 	}
 
@@ -241,16 +238,12 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 		PageSize:      pageSize,
 	}
 
-	pagedBooks, err := h.bookService.ListBooks(params)
+	pagedBooks, err := h.bookService.ListBooks(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, book.ErrResponseFromRespository) {
-			log.Println(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		responseJSON(w, http.StatusBadRequest, err)
+		handleError(err, w, r)
 		return
 	}
+
 	responseJSON(w, http.StatusOK, pagedBooksToResponse(pagedBooks))
 }
 
@@ -420,4 +413,23 @@ func extractPageParams(query url.Values) (page, pageSize int, valid bool) {
 	}
 
 	return page, pageSize, true
+}
+
+func handleError(err error, w http.ResponseWriter, r *http.Request) {
+	switch {
+	case errors.Is(err, book.ErrResponseQueryPageOutOfRange):
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
+		return
+	case errors.Is(err, book.ErrResponseBookNotFound):
+		log.Println(err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	case errors.Is(err, context.DeadlineExceeded):
+		log.Println(err)
+		responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
+		return
+	default:
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 }
