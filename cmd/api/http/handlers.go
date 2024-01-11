@@ -240,16 +240,7 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 
 	pagedBooks, err := h.bookService.ListBooks(r.Context(), params)
 	if err != nil {
-		if errors.Is(err, book.ErrResponseQueryPageOutOfRange) {
-			responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
-			return
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
-			return
-		}
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		handleError(err, w, r)
 		return
 	}
 
@@ -425,16 +416,20 @@ func extractPageParams(query url.Values) (page, pageSize int, valid bool) {
 }
 
 func handleError(err error, w http.ResponseWriter, r *http.Request) {
-	if errors.Is(err, context.DeadlineExceeded) {
-		log.Println(err)
-		responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
+	switch {
+	case errors.Is(err, book.ErrResponseQueryPageOutOfRange):
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
 		return
-	}
-	if errors.Is(err, book.ErrResponseBookNotFound) {
+	case errors.Is(err, book.ErrResponseBookNotFound):
 		log.Println(err)
 		w.WriteHeader(http.StatusNotFound)
 		return
+	case errors.Is(err, context.DeadlineExceeded):
+		log.Println(err)
+		responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
+		return
+	default:
+		log.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
 	}
-	log.Println(err)
-	w.WriteHeader(http.StatusInternalServerError)
 }
