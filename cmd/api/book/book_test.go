@@ -15,7 +15,8 @@ import (
 )
 
 var ctx context.Context = context.Background()
-var notificationsTimeout = 2 * time.Second
+
+const notificationsTimeout = 2 * time.Second
 
 func TestCreateBook(t *testing.T) {
 
@@ -47,7 +48,7 @@ func TestCreateBook(t *testing.T) {
 		wg.Add(1)
 		mockNtfy.EXPECT().BookCreated(gomock.Any(), reqBook.Name, *reqBook.Inventory).DoAndReturn(func(ctx context.Context, title string, inventory int) error {
 			defer wg.Done()
-			return errors.New("error to test ntfy return")
+			return nil
 		})
 
 		createdBook, err := mS.CreateBook(ctx, reqBook)

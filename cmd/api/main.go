@@ -58,7 +58,7 @@ func run() error {
 	}
 
 	//get Ntfy notifications config:
-	enableNotifications := true
+	enableNotifications := false
 	enableNotificationsStr := os.Getenv("ENABLE_NOTIFICATIONS")
 	if enableNotificationsStr != "" {
 		enableNotifications, err = strconv.ParseBool(enableNotificationsStr)
@@ -72,7 +72,7 @@ func run() error {
 		return errors.New("notifications base url must be: https://ntfy.sh/ + some randomic part")
 	}
 
-	ntfy := notifications.NewNtfy(enableNotifications, notificationsBaseURL)
+	ntfy := notifications.NewNtfy(enableNotifications, notificationsBaseURL, &http.Client{})
 
 	notificationsTimeout := 2 * time.Second
 	notificationsTimeoutStr := os.Getenv("SERVER_WAITS_NOTIFICATIONS_TIMEOUT") //This ENV must be written with a unit suffix, like seconds

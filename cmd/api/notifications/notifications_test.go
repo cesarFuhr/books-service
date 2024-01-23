@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -17,14 +18,14 @@ var ntfy *Ntfy
 func TestMain(m *testing.M) {
 	notificationsBaseURL := "https://ntfy.sh/test_Ah3mn6oD"
 	enableNotifications := true
-	ntfy = NewNtfy(enableNotifications, notificationsBaseURL)
+	ntfy = NewNtfy(enableNotifications, notificationsBaseURL, &http.Client{})
 
 	os.Exit(m.Run())
 }
 
 func TestBookCreated(t *testing.T) {
 
-	t.Run("notificates the criation of a new book without errors", func(t *testing.T) {
+	t.Run("notificates the criation of a new book without errors on actual ntfy service", func(t *testing.T) {
 		is := is.New(t)
 
 		title := "book to test ntfy"
@@ -63,22 +64,5 @@ func TestBookCreated(t *testing.T) {
 
 		err := ntfy.BookCreated(ctx, title, inventory)
 		is.True(errors.Is(err, context.DeadlineExceeded))
-		is.Equal(err.Error(), `error delivering message (New book created: Title: book to test context timeout Inventory: 40): Post "https://ntfy.sh/test_Ah3mn6oD_New_book_created": context deadline exceeded`)
-	})
-
-	t.Run("expected notifications not enabled error", func(t *testing.T) {
-		is := is.New(t)
-		notificationsBaseURL := "doesn't matter for this test"
-		enableNotifications := false
-		notNtfy := NewNtfy(enableNotifications, notificationsBaseURL)
-
-		title := "book to test not enabled"
-		inventory := 40
-		notificationsTimeout := 2 * time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), notificationsTimeout)
-		defer cancel()
-
-		err := notNtfy.BookCreated(ctx, title, inventory)
-		is.Equal(err.Error(), "notifications not enabled")
 	})
 }

@@ -75,7 +75,9 @@ func (s *Service) CreateBook(ctx context.Context, req CreateBookRequest) (Book, 
 			ctx, cancel := context.WithTimeout(context.Background(), s.notificationsTimeout)
 			defer cancel()
 			err := s.ntf.BookCreated(ctx, req.Name, *req.Inventory)
-			log.Println(err)
+			if err != nil {
+				log.Println(err)
+			}
 		}()
 	}
 	return b, err
