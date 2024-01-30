@@ -29,7 +29,7 @@ type Repository interface {
 }
 
 type Notifier interface {
-	BookCreated(ctx context.Context, title string, inventory int) error
+	BookCreated(ctx context.Context, createdBook Book) error
 }
 
 type Service struct {
@@ -74,7 +74,7 @@ func (s *Service) CreateBook(ctx context.Context, req CreateBookRequest) (Book, 
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), s.notificationsTimeout)
 			defer cancel()
-			err := s.ntf.BookCreated(ctx, req.Name, *req.Inventory)
+			err := s.ntf.BookCreated(ctx, newBook)
 			if err != nil {
 				log.Println(err)
 			}

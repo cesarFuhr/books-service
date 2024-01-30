@@ -46,7 +46,7 @@ func TestCreateBook(t *testing.T) {
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)
-		mockNtfy.EXPECT().BookCreated(gomock.Any(), reqBook.Name, *reqBook.Inventory).DoAndReturn(func(ctx context.Context, title string, inventory int) error {
+		mockNtfy.EXPECT().BookCreated(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, _ book.Book) error {
 			defer wg.Done()
 			return nil
 		})

@@ -154,15 +154,15 @@ func (m *MockNotifier) EXPECT() *MockNotifierMockRecorder {
 }
 
 // BookCreated mocks base method.
-func (m *MockNotifier) BookCreated(arg0 context.Context, arg1 string, arg2 int) error {
+func (m *MockNotifier) BookCreated(arg0 context.Context, arg1 book.Book) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BookCreated", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "BookCreated", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // BookCreated indicates an expected call of BookCreated.
-func (mr *MockNotifierMockRecorder) BookCreated(arg0, arg1, arg2 any) *gomock.Call {
+func (mr *MockNotifierMockRecorder) BookCreated(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BookCreated", reflect.TypeOf((*MockNotifier)(nil).BookCreated), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BookCreated", reflect.TypeOf((*MockNotifier)(nil).BookCreated), arg0, arg1)
 }

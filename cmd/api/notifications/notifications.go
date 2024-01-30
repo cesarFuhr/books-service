@@ -5,15 +5,21 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/books-service/cmd/api/book"
 )
+
+type Doer interface {
+	Do(*http.Request) (*http.Response, error)
+}
 
 type Ntfy struct {
 	baseURL string
 	enabled bool
-	client  *http.Client
+	client  Doer
 }
 
-func NewNtfy(enableNotifications bool, notificationsBaseURL string, client *http.Client) *Ntfy {
+func NewNtfy(enableNotifications bool, notificationsBaseURL string, client Doer) *Ntfy {
 	return &Ntfy{
 		baseURL: notificationsBaseURL,
 		enabled: enableNotifications,
@@ -21,22 +27,22 @@ func NewNtfy(enableNotifications bool, notificationsBaseURL string, client *http
 	}
 }
 
-func (ntf *Ntfy) BookCreated(ctx context.Context, title string, inventory int) error {
+func (ntf *Ntfy) BookCreated(ctx context.Context, createdBook book.Book) error {
 	if !ntf.enabled {
 		return nil
 	}
 
 	url := ntf.baseURL + "_New_book_created"
-	message := strings.NewReader(fmt.Sprintf("New book created:\nTitle: %s\nInventory: %v", title, inventory)) //Ntfy SEEMS NOT TO ACEPT SLASHS OR DOTS AT TOPIC
+	message := strings.NewReader(fmt.Sprintf("New book created:\nID: %v\nTitle: %s\nInventory: %v", createdBook.ID, createdBook.Name, *createdBook.Inventory)) //Ntfy SEEMS NOT TO ACEPT SLASHS OR DOTS AT TOPIC
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, message)
 	if err != nil {
-		return fmt.Errorf("error delivering message ("+fmt.Sprintf("New book created: Title: %s Inventory: %v", title, inventory)+"): %w", err)
+		return fmt.Errorf("error delivering message to ntfy (book ID: %v): %w", createdBook.ID, err)
 	}
 
 	_, err = ntf.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error delivering message ("+fmt.Sprintf("New book created: Title: %s Inventory: %v", title, inventory)+"): %w", err)
+		return fmt.Errorf("error delivering message to ntfy (book ID: %v): %w", createdBook.ID, err)
 	}
 	return nil
 }
