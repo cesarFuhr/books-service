@@ -40,9 +40,19 @@ func (ntf *Ntfy) BookCreated(ctx context.Context, createdBook book.Book) error {
 		return fmt.Errorf("error delivering message to ntfy (book ID: %v): %w", createdBook.ID, err)
 	}
 
-	_, err = ntf.client.Do(req)
+	resp, err := ntf.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("error delivering message to ntfy (book ID: %v): %w", createdBook.ID, err)
 	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		book.ErrStatusNotOK = book.ErrStatus{
+			StatusCode: resp.StatusCode,
+			Message:    "ntfy wrong response - want: 200 OK, got: " + resp.Status,
+		}
+		return book.ErrStatusNotOK
+	}
+
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -96,34 +97,78 @@ func TestBookCreated(t *testing.T) {
 		url := "https://ntfy.sh/test_Ah3mn6oD_New_book_created"
 		message := strings.NewReader("New book created:\nID: " + testerBook.ID.String() + "\nTitle: book to test ntfy\nInventory: 35")
 
-		mockClient.EXPECT().Do(gomock.Any()).Do(func(req *http.Request) (*http.Response, error) {
+		mockClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
 			is.True(req.Method == http.MethodPost)
 			is.True(req.URL.String() == url)
 			requestedBody, _ := io.ReadAll(req.Body)
 			expectedBody, _ := io.ReadAll(message)
 			is.Equal(string(requestedBody), string(expectedBody))
-			return nil, nil
+
+			resp := httptest.NewRecorder().Result()
+			resp.Status = "200 OK"
+			resp.StatusCode = 200
+
+			return resp, nil
 		})
 
 		err := ntfy.BookCreated(ctx, testerBook)
 		is.NoErr(err)
 	})
 
-	/*	t.Run("expected context timeout error", func(t *testing.T) {
+	t.Run("notificates the criation of a new book on a mocked Client, expecting response status not OK", func(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockClient := notificationmocks.NewMockDoer(ctrl)
 		ntfy := notifications.NewNtfy(enableNotifications, notificationsBaseURL, mockClient)
 
-		title := "book to test context timeout"
-		inventory := 40
-		notificationsTimeout := 2 * time.Millisecond
-		ctx, cancel := context.WithTimeout(context.Background(), notificationsTimeout)
-		defer cancel()
+		ctx := context.Background()
 
-		err := ntfy.BookCreated(ctx, title, inventory)
+		url := "https://ntfy.sh/test_Ah3mn6oD_New_book_created"
+		message := strings.NewReader("New book created:\nID: " + testerBook.ID.String() + "\nTitle: book to test ntfy\nInventory: 35")
+
+		mockClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+			is.True(req.Method == http.MethodPost)
+			is.True(req.URL.String() == url)
+			requestedBody, _ := io.ReadAll(req.Body)
+			expectedBody, _ := io.ReadAll(message)
+			is.Equal(string(requestedBody), string(expectedBody))
+
+			resp := httptest.NewRecorder().Result()
+			resp.Status = "500 Internal Server Error"
+			resp.StatusCode = 500
+
+			return resp, nil
+		})
+
+		err := ntfy.BookCreated(ctx, testerBook)
+		is.True(errors.Is(err, book.ErrStatusNotOK))
+		is.True(book.ErrStatusNotOK.StatusCode == 500)
+	})
+
+	t.Run("expected context timeout error from a mocked Client", func(t *testing.T) {
+		is := is.New(t)
+		ctrl := gomock.NewController(t)
+		mockClient := notificationmocks.NewMockDoer(ctrl)
+		ntfy := notifications.NewNtfy(enableNotifications, notificationsBaseURL, mockClient)
+
+		ctx := context.Background()
+
+		url := "https://ntfy.sh/test_Ah3mn6oD_New_book_created"
+		message := strings.NewReader("New book created:\nID: " + testerBook.ID.String() + "\nTitle: book to test ntfy\nInventory: 35")
+
+		mockClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+			is.True(req.Method == http.MethodPost)
+			is.True(req.URL.String() == url)
+			requestedBody, _ := io.ReadAll(req.Body)
+			expectedBody, _ := io.ReadAll(message)
+			is.Equal(string(requestedBody), string(expectedBody))
+
+			return nil, context.DeadlineExceeded
+		})
+
+		err := ntfy.BookCreated(ctx, testerBook)
 		is.True(errors.Is(err, context.DeadlineExceeded))
-	})*/
+	})
 }
 
 func toPointer[T any](v T) *T {
