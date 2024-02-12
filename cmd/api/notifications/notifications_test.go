@@ -20,7 +20,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// Integration tests:
 func TestIntegrationBookCreated(t *testing.T) {
 	notificationsBaseURL := "https://ntfy.sh/test_Ah3mn6oD"
 	enableNotifications := true
@@ -73,7 +72,6 @@ func TestIntegrationBookCreated(t *testing.T) {
 	})
 }
 
-// Unit tests:
 func TestBookCreated(t *testing.T) {
 	notificationsBaseURL := "https://ntfy.sh/test_Ah3mn6oD"
 	enableNotifications := true
@@ -106,7 +104,7 @@ func TestBookCreated(t *testing.T) {
 
 			resp := httptest.NewRecorder().Result()
 			resp.Status = "200 OK"
-			resp.StatusCode = 200
+			resp.StatusCode = http.StatusOK
 
 			return resp, nil
 		})
@@ -135,7 +133,7 @@ func TestBookCreated(t *testing.T) {
 
 			resp := httptest.NewRecorder().Result()
 			resp.Status = "500 Internal Server Error"
-			resp.StatusCode = 500
+			resp.StatusCode = http.StatusInternalServerError
 
 			return resp, nil
 		})

@@ -47,7 +47,7 @@ func (ntf *Ntfy) BookCreated(ctx context.Context, createdBook book.Book) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		book.ErrStatusNotOK = book.ErrStatus{
+		book.ErrStatusNotOK = book.ErrNotificationFailed{
 			StatusCode: resp.StatusCode,
 			Message:    "ntfy wrong response - want: 200 OK, got: " + resp.Status,
 		}

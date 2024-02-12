@@ -20,13 +20,13 @@ var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
 var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}
 var ErrResponseRequestTimeout = ErrResponse{109, "context deadline exceeded"}
 
-type ErrStatus struct {
+type ErrNotificationFailed struct {
 	StatusCode int
 	Message    string
 }
 
-func (e ErrStatus) Error() string {
+func (e ErrNotificationFailed) Error() string {
 	return e.Message
 }
 
-var ErrStatusNotOK = ErrStatus{}
+var ErrStatusNotOK = ErrNotificationFailed{}
