@@ -1,5 +1,7 @@
 package book
 
+import "fmt"
+
 type ErrResponse struct {
 	Code    int    `json:"error_code"`
 	Message string `json:"error_message"`
@@ -19,3 +21,15 @@ var ErrResponseQueryPageInvalid = ErrResponse{106, "query parameter 'page' must 
 var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
 var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}
 var ErrResponseRequestTimeout = ErrResponse{109, "context deadline exceeded"}
+
+type ErrNotificationFailed struct {
+	statusCode int
+}
+
+func (e ErrNotificationFailed) Error() string {
+	return fmt.Sprintf("ntfy wrong response - want: 200 OK, got: %d", e.statusCode)
+}
+
+func NewErrNotificationFailed(statusCode int) ErrNotificationFailed {
+	return ErrNotificationFailed{statusCode: statusCode}
+}

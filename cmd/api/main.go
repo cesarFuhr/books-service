@@ -8,12 +8,15 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/books-service/cmd/api/database"
 	bookhttp "github.com/books-service/cmd/api/http"
+	"github.com/books-service/cmd/api/notifications"
 
 	"github.com/golang-migrate/migrate/v4"
 )
@@ -54,7 +57,34 @@ func run() error {
 		}
 	}
 
-	bookService := book.NewService(store)
+	//get Ntfy notifications config:
+	enableNotifications := false
+	enableNotificationsStr := os.Getenv("ENABLE_NOTIFICATIONS")
+	if enableNotificationsStr != "" {
+		enableNotifications, err = strconv.ParseBool(enableNotificationsStr)
+		if err != nil {
+			return fmt.Errorf("getting notifications enabler flag from env: %w", err)
+		}
+	}
+	notificationsBaseURL := os.Getenv("NOTIFICATIONS_BASE_URL")
+	found := strings.HasPrefix(notificationsBaseURL, "https://ntfy.sh/")
+	if !found {
+		return errors.New("notifications base url must be: https://ntfy.sh/ + some randomic part")
+	}
+
+	ntfy := notifications.NewNtfy(enableNotifications, notificationsBaseURL, &http.Client{})
+
+	notificationsTimeout := 2 * time.Second
+	notificationsTimeoutStr := os.Getenv("SERVER_WAITS_NOTIFICATIONS_TIMEOUT") //This ENV must be written with a unit suffix, like seconds
+	if notificationsTimeoutStr != "" {
+		notificationsTimeout, err = time.ParseDuration(notificationsTimeoutStr)
+		if err != nil {
+			return fmt.Errorf("getting notifications timeout from env: %w", err)
+		}
+	}
+
+	//Init service with its dependencies:
+	bookService := book.NewService(store, ntfy, notificationsTimeout)
 	bookHandler := bookhttp.NewBookHandler(bookService, reqTimeout)
 
 	//create and init http server:

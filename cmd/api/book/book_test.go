@@ -3,6 +3,7 @@ package book_test
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,12 +16,16 @@ import (
 
 var ctx context.Context = context.Background()
 
+const notificationsTimeout = 2 * time.Second
+
 func TestCreateBook(t *testing.T) {
+
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mockNtfy := bookmock.NewMockNotifier(ctrl)
+		mS := book.NewService(mockRepo, mockNtfy, notificationsTimeout)
 
 		reqBook := book.CreateBookRequest{
 			Name:      "Service tester book",
@@ -39,6 +44,14 @@ func TestCreateBook(t *testing.T) {
 			return b, nil
 		})
 
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		b := book.Book{}
+		mockNtfy.EXPECT().BookCreated(gomock.Any(), gomock.AssignableToTypeOf(b)).DoAndReturn(func(_ context.Context, _ book.Book) error {
+			defer wg.Done()
+			return nil
+		})
+
 		createdBook, err := mS.CreateBook(ctx, reqBook)
 		is.NoErr(err)
 		is.True(createdBook.ID != uuid.Nil)
@@ -46,6 +59,8 @@ func TestCreateBook(t *testing.T) {
 		is.Equal(createdBook.Price, reqBook.Price)
 		is.Equal(createdBook.Inventory, reqBook.Inventory)
 		is.True(!createdBook.Archived)
+
+		wg.Wait()
 	})
 }
 
@@ -54,7 +69,8 @@ func TestUpdateBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mockNtfy := bookmock.NewMockNotifier(ctrl)
+		mS := book.NewService(mockRepo, mockNtfy, notificationsTimeout)
 
 		reqBook := book.UpdateBookRequest{
 			ID:        uuid.New(),
@@ -87,7 +103,8 @@ func TestArchiveBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mockNtfy := bookmock.NewMockNotifier(ctrl)
+		mS := book.NewService(mockRepo, mockNtfy, notificationsTimeout)
 
 		id := uuid.New()
 
@@ -103,7 +120,8 @@ func TestGetBook(t *testing.T) {
 		is := is.New(t)
 		ctrl := gomock.NewController(t)
 		mockRepo := bookmock.NewMockRepository(ctrl)
-		mS := book.NewService(mockRepo)
+		mockNtfy := bookmock.NewMockNotifier(ctrl)
+		mS := book.NewService(mockRepo, mockNtfy, notificationsTimeout)
 
 		id := uuid.New()
 
@@ -118,7 +136,8 @@ func TestListBooks(t *testing.T) {
 	is := is.New(t)
 	ctrl := gomock.NewController(t)
 	mockRepo := bookmock.NewMockRepository(ctrl)
-	mS := book.NewService(mockRepo)
+	mockNtfy := bookmock.NewMockNotifier(ctrl)
+	mS := book.NewService(mockRepo, mockNtfy, notificationsTimeout)
 	t.Run("list first page of stored books without errors, paginated with exact division", func(t *testing.T) {
 		//Setting specific subtest values:
 		reqBooks := book.ListBooksRequest{
