@@ -139,8 +139,7 @@ func TestBookCreated(t *testing.T) {
 		})
 
 		err := ntfy.BookCreated(ctx, testerBook)
-		is.True(errors.Is(err, book.ErrStatusNotOK))
-		is.True(book.ErrStatusNotOK.StatusCode == 500)
+		is.True(errors.As(err, &book.ErrNotificationFailed{}))
 	})
 
 	t.Run("expected context timeout error from a mocked Client", func(t *testing.T) {
