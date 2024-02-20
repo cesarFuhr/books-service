@@ -20,7 +20,7 @@ updated_at timestamp with time zone DEFAULT now()
 
 CREATE TABLE IF NOT EXISTS public.books_orders
 (
-order_id uuid REFERENCES public.orderstable ON DELETE CASCADE,
+order_id uuid REFERENCES public.orders ON DELETE CASCADE,
 book_id	uuid REFERENCES public.bookstable ON DELETE CASCADE,
 book_units integer,
 book_price_at_order	numeric(6,2),
@@ -31,7 +31,7 @@ PRIMARY KEY (order_id, book_id)
 
 CREATE TABLE IF NOT EXISTS public.payments
 (
-order_id uuid REFERENCES public.orderstable ON DELETE CASCADE,
+order_id uuid REFERENCES public.orders ON DELETE CASCADE,
 order_paid BOOLEAN DEFAULT false,
 created_at timestamp with time zone DEFAULT now(),
 updated_at timestamp with time zone DEFAULT now(),
