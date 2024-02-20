@@ -440,7 +440,7 @@ func teardownDB(t *testing.T) {
 	is := is.New(t)
 
 	// Truncating books table, cleaning up all the records.
-	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable`)
+	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable CASCADE`)
 	is.NoErr(err)
 
 	_, err = result.RowsAffected()
