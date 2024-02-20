@@ -8,6 +8,12 @@ processes = []
 
 [env]
   DATABASE_MIGRATIONS_PATH = "/src/migrations"
+  SERVICE_SHUTDOWN_TIMEOUT: "10s"
+  HTTP_REQUEST_TIMEOUT: "5s"
+  NOTIFICATIONS_TIMEOUT: "5s"
+  ENABLE_NOTIFICATIONS: "true"
+  SERVER_WAITS_NOTIFICATIONS_TIMEOUT: "2s"
+  NOTIFICATIONS_BASE_URL: "https://ntfy.sh/tCbNzLC3"
 
 [[services]]
   internal_port = 8080
