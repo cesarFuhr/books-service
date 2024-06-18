@@ -206,3 +206,8 @@ func (store *Store) ListBooksTotals(ctx context.Context, name string, minPrice32
 
 	return count, nil
 }
+
+func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.Order, error) {
+	//WRITE  THE CODE!
+	return newOrder, nil
+}

@@ -55,6 +55,21 @@ func (mr *MockRepositoryMockRecorder) CreateBook(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBook", reflect.TypeOf((*MockRepository)(nil).CreateBook), arg0, arg1)
 }
 
+// CreateOrder mocks base method.
+func (m *MockRepository) CreateOrder(arg0 context.Context, arg1 book.Order) (book.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateOrder", arg0, arg1)
+	ret0, _ := ret[0].(book.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateOrder indicates an expected call of CreateOrder.
+func (mr *MockRepositoryMockRecorder) CreateOrder(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrder", reflect.TypeOf((*MockRepository)(nil).CreateOrder), arg0, arg1)
+}
+
 // GetBookByID mocks base method.
 func (m *MockRepository) GetBookByID(arg0 context.Context, arg1 uuid.UUID) (book.Book, error) {
 	m.ctrl.T.Helper()

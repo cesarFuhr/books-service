@@ -25,5 +25,5 @@ func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, er
 		CreatedAt:    createdAt,
 		UpdatedAt:    createdAt,
 	}
-	return newOrder, nil
+	return s.repo.CreateOrder(ctx, newOrder)
 }

@@ -1,6 +1,7 @@
 package book_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -23,52 +24,14 @@ func TestCreateOrder(t *testing.T) {
 
 		someUser := uuid.New()
 
-		/*
-			mockRepo.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, o book.Order) (book.Order, error) {
-				is.True(o.Order_ID != uuid.Nil)
-				is.True(o.Purchaser_ID == someUser)
-				is.True(o.Order_status == "accepting_items")
-				is.True(o.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
-				is.True(o.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
-				return o, nil
-			})
-		*/
-
-		/*	reqBook := book.CreateBookRequest{
-				Name:      "Service tester book",
-				Price:     toPointer(float32(100.0)),
-				Inventory: toPointer(99),
-			}
-
-			mockRepo.EXPECT().CreateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, b book.Book) (book.Book, error) {
-				is.True(b.ID != uuid.Nil)
-				is.Equal(b.Name, reqBook.Name)
-				is.Equal(b.Price, reqBook.Price)
-				is.Equal(b.Inventory, reqBook.Inventory)
-				is.True(!b.Archived)
-				is.True(b.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
-				is.True(b.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
-				return b, nil
-			})
-
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			b := book.Book{}
-			mockNtfy.EXPECT().BookCreated(gomock.Any(), gomock.AssignableToTypeOf(b)).DoAndReturn(func(_ context.Context, _ book.Book) error {
-				defer wg.Done()
-				return nil
-			})
-
-			createdBook, err := mS.CreateBook(ctx, reqBook)
-			is.NoErr(err)
-			is.True(createdBook.ID != uuid.Nil)
-			is.Equal(createdBook.Name, reqBook.Name)
-			is.Equal(createdBook.Price, reqBook.Price)
-			is.Equal(createdBook.Inventory, reqBook.Inventory)
-			is.True(!createdBook.Archived)
-
-			wg.Wait()
-		*/
+		mockRepo.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, o book.Order) (book.Order, error) {
+			is.True(o.Order_ID != uuid.Nil)
+			is.True(o.Purchaser_ID == someUser)
+			is.True(o.Order_status == "accepting_items")
+			is.True(o.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
+			is.True(o.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
+			return o, nil
+		})
 
 		newOrder, err := mS.CreateOrder(ctx, someUser)
 		is.NoErr(err)
