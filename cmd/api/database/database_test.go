@@ -415,9 +415,46 @@ func TestDownMigrations(t *testing.T) {
 	is.True(!tableExists)
 }
 
+func TestCreateOrder(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
+
+	t.Run("creates an order with a generic user", func(t *testing.T) {
+		is := is.New(t)
+
+		o := book.Order{
+			Order_ID:     uuid.New(),
+			Purchaser_ID: uuid.New(),
+			Order_status: "accepting_items",
+			CreatedAt:    time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt:    time.Now().UTC().Round(time.Millisecond),
+		}
+
+		newOrder, err := store.CreateOrder(ctx, o)
+		is.NoErr(err)
+		compareOrders(is, newOrder, o)
+	})
+}
+
 // compareBooks asserts that two books are equal,
 // handling time.Time values correctly.
 func compareBooks(is *is.I, a, b book.Book) {
+	is.Helper()
+
+	// Make sure we have the correct timestamps.
+	is.True(a.CreatedAt.Equal(b.CreatedAt))
+	is.True(a.UpdatedAt.Equal(b.UpdatedAt))
+
+	// Overwrite to be able to compare them.
+	b.CreatedAt = a.CreatedAt
+	b.UpdatedAt = a.UpdatedAt
+
+	// Assert that they are equal.
+	is.Equal(a, b)
+}
+
+func compareOrders(is *is.I, a, b book.Order) {
 	is.Helper()
 
 	// Make sure we have the correct timestamps.

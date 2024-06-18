@@ -94,7 +94,7 @@ func (store *Store) CreateBook(ctx context.Context, bookEntry book.Book) (book.B
 	var bookToReturn book.Book
 	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
-		return book.Book{}, fmt.Errorf("storing on db: %w", err)
+		return book.Book{}, fmt.Errorf("storing book on db: %w", err)
 	}
 
 	return bookToReturn, nil
@@ -207,7 +207,18 @@ func (store *Store) ListBooksTotals(ctx context.Context, name string, minPrice32
 	return count, nil
 }
 
+/* Stores a new order into the database, checks and returns it if succeed. */
 func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.Order, error) {
-	//WRITE  THE CODE!
-	return newOrder, nil
+	sqlStatement := `
+	INSERT INTO orders (order_id, purchaser_id, order_status, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING *`
+	createdRow := store.db.QueryRowContext(ctx, sqlStatement, newOrder.Order_ID, newOrder.Purchaser_ID, newOrder.Order_status, newOrder.CreatedAt, newOrder.UpdatedAt)
+	var orderToReturn book.Order
+	err := createdRow.Scan(&orderToReturn.Order_ID, &orderToReturn.Purchaser_ID, &orderToReturn.Order_status, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
+	if err != nil {
+		return book.Order{}, fmt.Errorf("storing order on db: %w", err)
+	}
+
+	return orderToReturn, nil
 }
