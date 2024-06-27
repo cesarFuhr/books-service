@@ -115,6 +115,22 @@ func (mr *MockRepositoryMockRecorder) ListBooksTotals(arg0, arg1, arg2, arg3, ar
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBooksTotals", reflect.TypeOf((*MockRepository)(nil).ListBooksTotals), arg0, arg1, arg2, arg3, arg4)
 }
 
+// ListOrderItems mocks base method.
+func (m *MockRepository) ListOrderItems(arg0 context.Context, arg1 uuid.UUID) (book.Order, []book.ItemAtOrder, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOrderItems", arg0, arg1)
+	ret0, _ := ret[0].(book.Order)
+	ret1, _ := ret[1].([]book.ItemAtOrder)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListOrderItems indicates an expected call of ListOrderItems.
+func (mr *MockRepositoryMockRecorder) ListOrderItems(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOrderItems", reflect.TypeOf((*MockRepository)(nil).ListOrderItems), arg0, arg1)
+}
+
 // SetBookArchiveStatus mocks base method.
 func (m *MockRepository) SetBookArchiveStatus(arg0 context.Context, arg1 uuid.UUID, arg2 bool) (book.Book, error) {
 	m.ctrl.T.Helper()

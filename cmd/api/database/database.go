@@ -222,3 +222,7 @@ func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.
 
 	return orderToReturn, nil
 }
+
+func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (book.Order, []book.ItemAtOrder, error) {
+	return book.Order{}, []book.ItemAtOrder{}, nil
+}
