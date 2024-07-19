@@ -34,7 +34,7 @@ type ItemAtOrder struct {
 	Order_ID         uuid.UUID
 	Book_ID          uuid.UUID
 	Book_units       int
-	BookPriceAtOrder float32
+	BookPriceAtOrder *float32
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }

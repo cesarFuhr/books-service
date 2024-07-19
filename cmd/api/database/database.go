@@ -224,5 +224,59 @@ func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.
 }
 
 func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (book.Order, []book.ItemAtOrder, error) {
-	return book.Order{}, []book.ItemAtOrder{}, nil
+	sqlStatement := `SELECT order_id, purchaser_id, order_status, created_at, updated_at
+	FROM orders 
+	WHERE order_id=$1;`
+	foundRow := store.db.QueryRowContext(ctx, sqlStatement, order_id)
+	var orderToReturn book.Order
+	err := foundRow.Scan(&orderToReturn.Order_ID, &orderToReturn.Purchaser_ID, &orderToReturn.Order_status, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", book.ErrResponseOrderNotFound)
+		default:
+			return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+		}
+	}
+
+	sqlStatement = `SELECT * FROM books_orders 
+	WHERE order_id=$1;`
+
+	rows, err := store.db.QueryContext(ctx, sqlStatement, order_id)
+	if err != nil {
+		return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+	}
+	defer rows.Close()
+	itemsAtOrderList := []book.ItemAtOrder{}
+	var itemAtOrder book.ItemAtOrder
+	for rows.Next() {
+		err = rows.Scan(&itemAtOrder.Order_ID, &itemAtOrder.Book_ID, &itemAtOrder.Book_units, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
+		if err != nil {
+			return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+		}
+
+		itemsAtOrderList = append(itemsAtOrderList, itemAtOrder)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+	}
+
+	return orderToReturn, itemsAtOrderList, nil
+}
+
+func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.ItemAtOrder) (book.ItemAtOrder, error) {
+	sqlStatement := `
+	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING *`
+	createdRow := store.db.QueryRowContext(ctx, sqlStatement, newItemAtOrder.Order_ID, newItemAtOrder.Book_ID, newItemAtOrder.Book_units, *newItemAtOrder.BookPriceAtOrder, newItemAtOrder.CreatedAt, newItemAtOrder.UpdatedAt)
+	var itemToReturn book.ItemAtOrder
+	err := createdRow.Scan(&itemToReturn.Order_ID, &itemToReturn.Book_ID, &itemToReturn.Book_units, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	if err != nil {
+		return book.ItemAtOrder{}, fmt.Errorf("storing new item at order on db: %w", err)
+	}
+
+	return itemToReturn, nil
 }

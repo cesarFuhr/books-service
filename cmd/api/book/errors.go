@@ -21,6 +21,7 @@ var ErrResponseQueryPageInvalid = ErrResponse{106, "query parameter 'page' must 
 var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
 var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}
 var ErrResponseRequestTimeout = ErrResponse{109, "context deadline exceeded"}
+var ErrResponseOrderNotFound = ErrResponse{110, "order not found"}
 
 type ErrNotificationFailed struct {
 	statusCode int

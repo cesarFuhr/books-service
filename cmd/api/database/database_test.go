@@ -437,6 +437,77 @@ func TestCreateOrder(t *testing.T) {
 	})
 }
 
+func TestListOrderItems(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
+
+	is := is.New(t)
+	var testBookslist []book.Book
+	listSize := 5
+
+	// Setting up, creating books to be listed.
+	for i := 0; i < listSize; i++ {
+		b := book.Book{
+			ID:        uuid.New(),
+			Name:      fmt.Sprintf("Book number %06v", i),
+			Price:     toPointer(float32((i * 100) + 1)),
+			Inventory: toPointer(i + 1),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+		}
+
+		newBook, err := store.CreateBook(ctx, b)
+		is.NoErr(err)
+		compareBooks(is, newBook, b)
+		testBookslist = append(testBookslist, b)
+	}
+
+	t.Run("lists items from an order without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		//creating order to be fetched:
+		o := book.Order{
+			Order_ID:     uuid.New(),
+			Purchaser_ID: uuid.New(),
+			Order_status: "accepting_items",
+			CreatedAt:    time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt:    time.Now().UTC().Round(time.Millisecond),
+		}
+		newOrder, err := store.CreateOrder(ctx, o)
+		is.NoErr(err)
+
+		compareOrders(is, newOrder, o)
+
+		//adding the books to an order:
+		storedList := []book.ItemAtOrder{}
+		bookUnits := 1
+		for _, bk := range testBookslist {
+			//changing books into itemsAtOrder:
+			bkItem := book.ItemAtOrder{
+				Order_ID:         o.Order_ID,
+				Book_ID:          bk.ID,
+				Book_units:       bookUnits,
+				BookPriceAtOrder: bk.Price,
+				CreatedAt:        time.Now().UTC().Round(time.Millisecond),
+				UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
+			}
+
+			bookAtOrder, err := store.AddItemToOrder(ctx, bkItem)
+			is.NoErr(err)
+			storedList = append(storedList, bookAtOrder)
+		}
+
+		//testing if it returns a valid list:
+		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.Order_ID)
+		is.NoErr(err)
+		compareOrders(is, fetchedOrder, o)
+		for i, expected := range storedList {
+			compareItemsAtOrder(is, fetchedList[i], expected)
+		}
+	})
+}
+
 // compareBooks asserts that two books are equal,
 // handling time.Time values correctly.
 func compareBooks(is *is.I, a, b book.Book) {
@@ -455,6 +526,21 @@ func compareBooks(is *is.I, a, b book.Book) {
 }
 
 func compareOrders(is *is.I, a, b book.Order) {
+	is.Helper()
+
+	// Make sure we have the correct timestamps.
+	is.True(a.CreatedAt.Equal(b.CreatedAt))
+	is.True(a.UpdatedAt.Equal(b.UpdatedAt))
+
+	// Overwrite to be able to compare them.
+	b.CreatedAt = a.CreatedAt
+	b.UpdatedAt = a.UpdatedAt
+
+	// Assert that they are equal.
+	is.Equal(a, b)
+}
+
+func compareItemsAtOrder(is *is.I, a, b book.ItemAtOrder) {
 	is.Helper()
 
 	// Make sure we have the correct timestamps.
