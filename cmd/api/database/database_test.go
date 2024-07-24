@@ -200,7 +200,6 @@ func TestGetBook(t *testing.T) {
 		is.NoErr(err)
 		compareBooks(is, newBook, b)
 
-		// Write the Get Book test here.
 		returnedBook, err := store.GetBookByID(ctx, b.ID)
 		is.NoErr(err)
 		compareBooks(is, returnedBook, b)
@@ -209,7 +208,6 @@ func TestGetBook(t *testing.T) {
 	t.Run("Gets an non existing book should return a not found error", func(t *testing.T) {
 		is := is.New(t)
 
-		// Write the Get Book test here.
 		returnedBook, err := store.GetBookByID(ctx, uuid.New())
 		is.True(errors.Is(err, book.ErrResponseBookNotFound))
 		compareBooks(is, returnedBook, book.Book{})
@@ -505,6 +503,15 @@ func TestListOrderItems(t *testing.T) {
 		for i, expected := range storedList {
 			compareItemsAtOrder(is, fetchedList[i], expected)
 		}
+	})
+
+	t.Run("lists items from an inexistent order should return a not found error", func(t *testing.T) {
+		is := is.New(t)
+
+		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, uuid.New())
+		is.True(errors.Is(err, book.ErrResponseOrderNotFound))
+		compareOrders(is, fetchedOrder, book.Order{})
+		is.True(len(fetchedList) == 0)
 	})
 }
 
