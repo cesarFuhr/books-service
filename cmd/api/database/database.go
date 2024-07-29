@@ -213,9 +213,9 @@ func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.
 	INSERT INTO orders (order_id, purchaser_id, order_status, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5)
 	RETURNING *`
-	createdRow := store.db.QueryRowContext(ctx, sqlStatement, newOrder.Order_ID, newOrder.Purchaser_ID, newOrder.Order_status, newOrder.CreatedAt, newOrder.UpdatedAt)
+	createdRow := store.db.QueryRowContext(ctx, sqlStatement, newOrder.OrderID, newOrder.PurchaserID, newOrder.OrderStatus, newOrder.CreatedAt, newOrder.UpdatedAt)
 	var orderToReturn book.Order
-	err := createdRow.Scan(&orderToReturn.Order_ID, &orderToReturn.Purchaser_ID, &orderToReturn.Order_status, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
+	err := createdRow.Scan(&orderToReturn.OrderID, &orderToReturn.PurchaserID, &orderToReturn.OrderStatus, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
 	if err != nil {
 		return book.Order{}, fmt.Errorf("storing order on db: %w", err)
 	}
@@ -223,19 +223,19 @@ func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.
 	return orderToReturn, nil
 }
 
-func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (book.Order, []book.ItemAtOrder, error) {
+func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (book.Order, []book.OrderItem, error) {
 	sqlStatement := `SELECT order_id, purchaser_id, order_status, created_at, updated_at
 	FROM orders 
 	WHERE order_id=$1;`
 	foundRow := store.db.QueryRowContext(ctx, sqlStatement, order_id)
 	var orderToReturn book.Order
-	err := foundRow.Scan(&orderToReturn.Order_ID, &orderToReturn.Purchaser_ID, &orderToReturn.Order_status, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
+	err := foundRow.Scan(&orderToReturn.OrderID, &orderToReturn.PurchaserID, &orderToReturn.OrderStatus, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", book.ErrResponseOrderNotFound)
+			return book.Order{}, []book.OrderItem{}, fmt.Errorf("listing order items from db: %w", book.ErrResponseOrderNotFound)
 		default:
-			return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+			return book.Order{}, []book.OrderItem{}, fmt.Errorf("listing order items from db: %w", err)
 		}
 	}
 
@@ -244,15 +244,15 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 
 	rows, err := store.db.QueryContext(ctx, sqlStatement, order_id)
 	if err != nil {
-		return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+		return book.Order{}, []book.OrderItem{}, fmt.Errorf("listing order items from db: %w", err)
 	}
 	defer rows.Close()
-	itemsAtOrderList := []book.ItemAtOrder{}
-	var itemAtOrder book.ItemAtOrder
+	itemsAtOrderList := []book.OrderItem{}
+	var itemAtOrder book.OrderItem
 	for rows.Next() {
-		err = rows.Scan(&itemAtOrder.Order_ID, &itemAtOrder.Book_ID, &itemAtOrder.Book_units, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
+		err = rows.Scan(&itemAtOrder.OrderID, &itemAtOrder.BookID, &itemAtOrder.BookUnits, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
 		if err != nil {
-			return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+			return book.Order{}, []book.OrderItem{}, fmt.Errorf("listing order items from db: %w", err)
 		}
 
 		itemsAtOrderList = append(itemsAtOrderList, itemAtOrder)
@@ -260,22 +260,22 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 
 	err = rows.Err()
 	if err != nil {
-		return book.Order{}, []book.ItemAtOrder{}, fmt.Errorf("listing order items from db: %w", err)
+		return book.Order{}, []book.OrderItem{}, fmt.Errorf("listing order items from db: %w", err)
 	}
 
 	return orderToReturn, itemsAtOrderList, nil
 }
 
-func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.ItemAtOrder) (book.ItemAtOrder, error) {
+func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.OrderItem) (book.OrderItem, error) {
 	sqlStatement := `
 	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING *`
-	createdRow := store.db.QueryRowContext(ctx, sqlStatement, newItemAtOrder.Order_ID, newItemAtOrder.Book_ID, newItemAtOrder.Book_units, *newItemAtOrder.BookPriceAtOrder, newItemAtOrder.CreatedAt, newItemAtOrder.UpdatedAt)
-	var itemToReturn book.ItemAtOrder
-	err := createdRow.Scan(&itemToReturn.Order_ID, &itemToReturn.Book_ID, &itemToReturn.Book_units, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	createdRow := store.db.QueryRowContext(ctx, sqlStatement, newItemAtOrder.OrderID, newItemAtOrder.BookID, newItemAtOrder.BookUnits, *newItemAtOrder.BookPriceAtOrder, newItemAtOrder.CreatedAt, newItemAtOrder.UpdatedAt)
+	var itemToReturn book.OrderItem
+	err := createdRow.Scan(&itemToReturn.OrderID, &itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
 	if err != nil {
-		return book.ItemAtOrder{}, fmt.Errorf("storing new item at order on db: %w", err)
+		return book.OrderItem{}, fmt.Errorf("storing new item at order on db: %w", err)
 	}
 
 	return itemToReturn, nil

@@ -422,11 +422,11 @@ func TestCreateOrder(t *testing.T) {
 		is := is.New(t)
 
 		o := book.Order{
-			Order_ID:     uuid.New(),
-			Purchaser_ID: uuid.New(),
-			Order_status: "accepting_items",
-			CreatedAt:    time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt:    time.Now().UTC().Round(time.Millisecond),
+			OrderID:     uuid.New(),
+			PurchaserID: uuid.New(),
+			OrderStatus: "accepting_items",
+			CreatedAt:   time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt:   time.Now().UTC().Round(time.Millisecond),
 		}
 
 		newOrder, err := store.CreateOrder(ctx, o)
@@ -466,11 +466,11 @@ func TestListOrderItems(t *testing.T) {
 
 		//creating order to be fetched:
 		o := book.Order{
-			Order_ID:     uuid.New(),
-			Purchaser_ID: uuid.New(),
-			Order_status: "accepting_items",
-			CreatedAt:    time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt:    time.Now().UTC().Round(time.Millisecond),
+			OrderID:     uuid.New(),
+			PurchaserID: uuid.New(),
+			OrderStatus: "accepting_items",
+			CreatedAt:   time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt:   time.Now().UTC().Round(time.Millisecond),
 		}
 		newOrder, err := store.CreateOrder(ctx, o)
 		is.NoErr(err)
@@ -478,14 +478,14 @@ func TestListOrderItems(t *testing.T) {
 		compareOrders(is, newOrder, o)
 
 		//adding the books to an order:
-		storedList := []book.ItemAtOrder{}
+		storedList := []book.OrderItem{}
 		bookUnits := 1
 		for _, bk := range testBookslist {
 			//changing books into itemsAtOrder:
-			bkItem := book.ItemAtOrder{
-				Order_ID:         o.Order_ID,
-				Book_ID:          bk.ID,
-				Book_units:       bookUnits,
+			bkItem := book.OrderItem{
+				OrderID:          o.OrderID,
+				BookID:           bk.ID,
+				BookUnits:        bookUnits,
 				BookPriceAtOrder: bk.Price,
 				CreatedAt:        time.Now().UTC().Round(time.Millisecond),
 				UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
@@ -497,7 +497,7 @@ func TestListOrderItems(t *testing.T) {
 		}
 
 		//testing if it returns a valid list:
-		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.Order_ID)
+		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		compareOrders(is, fetchedOrder, o)
 		for i, expected := range storedList {
@@ -547,7 +547,7 @@ func compareOrders(is *is.I, a, b book.Order) {
 	is.Equal(a, b)
 }
 
-func compareItemsAtOrder(is *is.I, a, b book.ItemAtOrder) {
+func compareItemsAtOrder(is *is.I, a, b book.OrderItem) {
 	is.Helper()
 
 	// Make sure we have the correct timestamps.

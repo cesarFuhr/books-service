@@ -10,30 +10,30 @@ import (
 )
 
 type Order struct {
-	Order_ID     uuid.UUID
-	Purchaser_ID uuid.UUID
-	Order_status string
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	OrderID     uuid.UUID
+	PurchaserID uuid.UUID
+	OrderStatus string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }
 
 func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error) {
 	createdAt := time.Now().UTC().Round(time.Millisecond)
 
 	newOrder := Order{
-		Order_ID:     uuid.New(),
-		Purchaser_ID: user_id,
-		Order_status: "accepting_items",
-		CreatedAt:    createdAt,
-		UpdatedAt:    createdAt,
+		OrderID:     uuid.New(),
+		PurchaserID: user_id,
+		OrderStatus: "accepting_items",
+		CreatedAt:   createdAt,
+		UpdatedAt:   createdAt,
 	}
 	return s.repo.CreateOrder(ctx, newOrder)
 }
 
-type ItemAtOrder struct {
-	Order_ID         uuid.UUID
-	Book_ID          uuid.UUID
-	Book_units       int
+type OrderItem struct {
+	OrderID          uuid.UUID
+	BookID           uuid.UUID
+	BookUnits        int
 	BookPriceAtOrder *float32
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
@@ -41,20 +41,20 @@ type ItemAtOrder struct {
 
 type OrderItemsList struct {
 	Order     Order
-	ItemsList []ItemAtOrder
+	ItemsList []OrderItem
 }
 
 func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (OrderItemsList, error) {
 	order, items, err := s.repo.ListOrderItems(ctx, order_id)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return OrderItemsList{Order{}, []ItemAtOrder{}}, fmt.Errorf("timeout on call to ListOrderItems: %w", err)
+			return OrderItemsList{}, fmt.Errorf("timeout on call to ListOrderItems: %w", err)
 		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
 			Message: ErrResponseFromRespository.Message + err.Error(),
 		}
-		return OrderItemsList{Order{}, []ItemAtOrder{}}, errRepo
+		return OrderItemsList{}, errRepo
 
 	}
 
@@ -67,13 +67,14 @@ func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order
 }
 
 type UpdateOrderRequest struct {
-	Order_ID   uuid.UUID
-	Book_ID    uuid.UUID
-	Book_units int
+	OrderID   uuid.UUID
+	BookID    uuid.UUID
+	BookUnits int
 }
 
 /*
 func (s *Service) UpdateOrder(ctx context.Context, req UpdateOrderRequest) (Order, error) {
 	return updatedOrderItemsList, nil
 }
+	BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 */

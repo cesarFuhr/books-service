@@ -26,9 +26,9 @@ func TestCreateOrder(t *testing.T) {
 		someUser := uuid.New()
 
 		mockRepo.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, o book.Order) (book.Order, error) {
-			is.True(o.Order_ID != uuid.Nil)
-			is.True(o.Purchaser_ID == someUser)
-			is.True(o.Order_status == "accepting_items")
+			is.True(o.OrderID != uuid.Nil)
+			is.True(o.PurchaserID == someUser)
+			is.True(o.OrderStatus == "accepting_items")
 			is.True(o.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 			is.True(o.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 			return o, nil
@@ -36,9 +36,9 @@ func TestCreateOrder(t *testing.T) {
 
 		newOrder, err := mS.CreateOrder(ctx, someUser)
 		is.NoErr(err)
-		is.True(newOrder.Order_ID != uuid.Nil)
-		is.True(newOrder.Purchaser_ID == someUser)
-		is.True(newOrder.Order_status == "accepting_items")
+		is.True(newOrder.OrderID != uuid.Nil)
+		is.True(newOrder.PurchaserID == someUser)
+		is.True(newOrder.OrderStatus == "accepting_items")
 		is.True(newOrder.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 		is.True(newOrder.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 	})
@@ -54,12 +54,12 @@ func TestListOrderItems(t *testing.T) {
 
 		newOrderID := uuid.New()
 
-		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{Order_ID: newOrderID}, []book.ItemAtOrder{}, nil)
+		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{OrderID: newOrderID}, []book.OrderItem{}, nil)
 
 		list, err := mS.ListOrderItems(ctx, newOrderID)
 		is.NoErr(err)
-		is.Equal(list.Order.Order_ID, newOrderID)
-		is.Equal(list.ItemsList, []book.ItemAtOrder{})
+		is.Equal(list.Order.OrderID, newOrderID)
+		is.Equal(list.ItemsList, []book.OrderItem{})
 	})
 
 	t.Run("expected error from database", func(t *testing.T) {
@@ -76,12 +76,12 @@ func TestListOrderItems(t *testing.T) {
 			Message: book.ErrResponseFromRespository.Message + dbErr.Error(),
 		}
 
-		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, []book.ItemAtOrder{}, dbErr)
+		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, []book.OrderItem{}, dbErr)
 
 		list, err := mS.ListOrderItems(ctx, newOrderID)
 		is.Equal(err, errRepo)
 		is.Equal(list.Order, book.Order{})
-		is.Equal(list.ItemsList, []book.ItemAtOrder{})
+		is.Equal(list.ItemsList, nil)
 	})
 
 	t.Run("expected context timeout error", func(t *testing.T) {
@@ -93,12 +93,12 @@ func TestListOrderItems(t *testing.T) {
 
 		newOrderID := uuid.New()
 
-		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, []book.ItemAtOrder{}, context.DeadlineExceeded)
+		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, []book.OrderItem{}, context.DeadlineExceeded)
 
 		list, err := mS.ListOrderItems(ctx, newOrderID)
 		is.Equal(err.Error(), "timeout on call to ListOrderItems: "+context.DeadlineExceeded.Error())
 		is.Equal(list.Order, book.Order{})
-		is.Equal(list.ItemsList, []book.ItemAtOrder{})
+		is.Equal(list.ItemsList, nil)
 	})
 }
 
