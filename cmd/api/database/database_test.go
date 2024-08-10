@@ -515,6 +515,73 @@ func TestListOrderItems(t *testing.T) {
 	})
 }
 
+func TestUpdateOrder(t *testing.T) {
+	t.Cleanup(func() {
+		teardownDB(t)
+	})
+
+	is := is.New(t)
+	var testBookslist []book.Book
+	listSize := 5
+
+	// Setting up, creating books to be added to an order.
+	for i := 0; i < listSize; i++ {
+		b := book.Book{
+			ID:        uuid.New(),
+			Name:      fmt.Sprintf("Book number %06v", i),
+			Price:     toPointer(float32((i * 100) + 1)),
+			Inventory: toPointer(i + 1),
+			CreatedAt: time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+		}
+
+		newBook, err := store.CreateBook(ctx, b)
+		is.NoErr(err)
+		compareBooks(is, newBook, b)
+		testBookslist = append(testBookslist, b)
+	}
+
+	//creating order to be fetched:
+	o := book.Order{
+		OrderID:     uuid.New(),
+		PurchaserID: uuid.New(),
+		OrderStatus: "accepting_items",
+		CreatedAt:   time.Now().UTC().Round(time.Millisecond),
+		UpdatedAt:   time.Now().UTC().Round(time.Millisecond),
+	}
+	newOrder, err := store.CreateOrder(ctx, o)
+	is.NoErr(err)
+
+	compareOrders(is, newOrder, o)
+
+	t.Run("add an item to an order without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		/* PASS IT TO DATABASE LAYER?
+		//changing books into itemAtOrder:
+		bkItem := book.OrderItem{
+			OrderID:          o.OrderID,
+			BookID:           testBookslist[0].ID,
+			BookUnits:        1,
+			BookPriceAtOrder: testBookslist[0].Price,
+			CreatedAt:        time.Now().UTC().Round(time.Millisecond),
+			UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
+		}*/
+
+		updtReq := book.UpdateOrderRequest{
+			OrderID:        o.OrderID,
+			BookID:         testBookslist[0].ID,
+			BookUnitsToAdd: 2,
+		}
+
+		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
+		is.NoErr(err)
+		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
+		is.Equal(bookAtOrder.BookID, updtReq.BookID)
+		is.Equal(bookAtOrder.BookUnits, updtReq.BookUnitsToAdd) //In this test we are ADDING a book to an order, so BookUnits starts from zero.
+	})
+}
+
 // compareBooks asserts that two books are equal,
 // handling time.Time values correctly.
 func compareBooks(is *is.I, a, b book.Book) {
@@ -570,7 +637,7 @@ func teardownDB(t *testing.T) {
 	is := is.New(t)
 
 	// Truncating books table, cleaning up all the records.
-	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable CASCADE`)
+	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable CASCADE`) //SHOULD WE TRUNCATE THE OTHER TABLES TOO?????
 	is.NoErr(err)
 
 	_, err = result.RowsAffected()

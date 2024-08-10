@@ -114,19 +114,20 @@ func TestUpdateOrder(t *testing.T) {
 		mS := book.NewService(mockRepo, mockNtfy, notificationsTimeout)
 
 		reqOrder := book.UpdateOrderRequest{
-			Order_ID:   uuid.New(),
-			Book_ID:    uuid.New(),
-			Book_units: 5,
+			OrderID:   uuid.New(),
+			BookID:    uuid.New(),
+			BookUnits: 5,
 		}
 
 		//UPDATEOrder(book_id, order_id, book_units) order_list
 		updatedOrderItemsList, err := mS.UpdateOrder(ctx, reqOrder)
 		is.NoErr(err)
-	//	 MOVE THIS TO EXPECT BLOCK OF MOCKED REPO
-	//	is.Equal(updatedOrder.Order_ID, reqOrder.Order_ID)
-	//	is.Equal(updatedOrder.Book_ID, reqOrder.Book_ID)
-	//	is.Equal(updatedOrder.Book_units, reqOrder.Book_units)
-	//	is.True(updatedOrder.UpdatedAt.Compare(updatedOrder.CreatedAt.Round(time.Millisecond)) > 0)
+		is.Equal(updatedOrderItemsList.Order.OrderID, reqOrder.OrderID)
+		//	 MOVE THIS TO EXPECT BLOCK OF MOCKED REPO
+		//	is.Equal(updatedOrder.Order_ID, reqOrder.Order_ID)
+		//	is.Equal(updatedOrder.Book_ID, reqOrder.Book_ID)
+		//	is.Equal(updatedOrder.Book_units, reqOrder.Book_units)
+		//	is.True(updatedOrder.UpdatedAt.Compare(updatedOrder.CreatedAt.Round(time.Millisecond)) > 0)
 
 	})
 }

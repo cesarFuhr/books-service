@@ -67,14 +67,15 @@ func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order
 }
 
 type UpdateOrderRequest struct {
-	OrderID   uuid.UUID
-	BookID    uuid.UUID
-	BookUnits int
+	OrderID        uuid.UUID
+	BookID         uuid.UUID
+	BookUnitsToAdd int
 }
 
-/*
-func (s *Service) UpdateOrder(ctx context.Context, req UpdateOrderRequest) (Order, error) {
+/* WRITE THIS FUNCTION LATER...
+func (s *Service) UpdateOrder(ctx context.Context, req UpdateOrderRequest) (OrderItemsList, error) {
+	var updatedOrderItemsList OrderItemsList
+
 	return updatedOrderItemsList, nil
 }
-	BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 */

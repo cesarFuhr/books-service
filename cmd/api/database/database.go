@@ -280,3 +280,12 @@ func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.Orde
 
 	return itemToReturn, nil
 }
+
+/* Updates an order stored in database, adding or removing items(books) from it. */
+func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
+	var itemToReturn book.OrderItem
+
+	`BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`
+
+	return itemToReturn, nil
+}
