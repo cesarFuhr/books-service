@@ -285,7 +285,20 @@ func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.Orde
 func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
 	var itemToReturn book.OrderItem
 
-	`BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`
+	_, err := store.db.ExecContext(ctx, `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("beginning transaction to update order on db: %w", err)
+	}
+
+	defer func() {
+		_, err = store.db.ExecContext(ctx, `ROLLBACK;`)
+		if err != nil {
+			itemToReturn = book.OrderItem{}
+			err = fmt.Errorf("rolling back transaction to update order on db: %w", err)
+		}
+	}()
+
+	//WRITE TRANSACTION FUNCTIONS HERE:
 
 	return itemToReturn, nil
 }
