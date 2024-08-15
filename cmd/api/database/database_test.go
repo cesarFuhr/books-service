@@ -530,7 +530,7 @@ func TestUpdateOrder(t *testing.T) {
 			ID:        uuid.New(),
 			Name:      fmt.Sprintf("Book number %06v", i),
 			Price:     toPointer(float32((i * 100) + 1)),
-			Inventory: toPointer(i + 1),
+			Inventory: toPointer(3),
 			CreatedAt: time.Now().UTC().Round(time.Millisecond),
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
@@ -579,6 +579,13 @@ func TestUpdateOrder(t *testing.T) {
 		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
 		is.Equal(bookAtOrder.BookID, updtReq.BookID)
 		is.Equal(bookAtOrder.BookUnits, updtReq.BookUnitsToAdd) //In this test we are ADDING a book to an order, so BookUnits starts from zero.
+
+		//testing if the transaction was really commited:
+		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		is.NoErr(err)
+		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
+		is.Equal(fetchedList[0].BookID, updtReq.BookID)
+
 	})
 }
 

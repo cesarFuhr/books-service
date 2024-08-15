@@ -22,6 +22,9 @@ var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
 var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}
 var ErrResponseRequestTimeout = ErrResponse{109, "context deadline exceeded"}
 var ErrResponseOrderNotFound = ErrResponse{110, "order not found"}
+var ErrResponseOrderNotAcceptingItems = ErrResponse{111, "order not accepting items"}
+var ErrResponseBookIsArchived = ErrResponse{112, "book status is archived"}
+var ErrResponseInsufficientInventory = ErrResponse{113, "inventory is insufficient for this order"}
 
 type ErrNotificationFailed struct {
 	statusCode int

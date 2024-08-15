@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/golang-migrate/migrate/v4"
@@ -285,6 +286,7 @@ func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.Orde
 func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
 	var itemToReturn book.OrderItem
 
+	//Beginning transaction:
 	_, err := store.db.ExecContext(ctx, `BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;`)
 	if err != nil {
 		return book.OrderItem{}, fmt.Errorf("beginning transaction to update order on db: %w", err)
@@ -298,7 +300,70 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 		}
 	}()
 
-	//WRITE TRANSACTION FUNCTIONS HERE:
+	//Updating row in orders table and checking if the order is accepting items:
+	sqlStatement := `
+	UPDATE orders
+	SET updated_at = $2
+	WHERE order_id = $1
+	RETURNING order_status`
+	updatedRow := store.db.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, time.Now().UTC().Round(time.Millisecond))
+	var o book.Order
+	err = updatedRow.Scan(&o.OrderStatus)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotFound)
+		default:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+		}
+	}
+	if o.OrderStatus != "accepting_items" {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotAcceptingItems)
+	}
+
+	//Testing if the book is already at the order:
+	//IN CASE IT IS NOT: ========================================================================
+
+	//Testing if there are sufficient inventory of the book asked, and if is not archived:
+	bk, err := store.GetBookByID(ctx, updtReq.BookID)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+	}
+	if bk.Archived {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseBookIsArchived)
+	}
+	balance := *bk.Inventory - updtReq.BookUnitsToAdd
+	if balance < 0 {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseInsufficientInventory)
+	}
+
+	//Adding a new book to the order:
+	bkItem := book.OrderItem{
+		OrderID:          updtReq.OrderID,
+		BookID:           updtReq.BookID,
+		BookUnits:        updtReq.BookUnitsToAdd,
+		BookPriceAtOrder: bk.Price,
+		CreatedAt:        time.Now().UTC().Round(time.Millisecond),
+		UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
+	}
+
+	itemToReturn, err = store.AddItemToOrder(ctx, bkItem)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+	}
+
+	//Updating book inventory acordingly at bookstable:
+	if balance == 0 { //Case inventory becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
+		//DROP ROW FROM BOOK_ORDERS TABLE
+	}
+	//UPDATE ROW AT BOOKSTABLE
+
+	//Commiting transaction:
+	_, err = store.db.ExecContext(ctx, `COMMIT;`)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("commiting transaction to update order on db: %w", err)
+	}
 
 	return itemToReturn, nil
+
 }
