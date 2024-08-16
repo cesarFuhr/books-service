@@ -586,6 +586,11 @@ func TestUpdateOrder(t *testing.T) {
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
 		is.Equal(fetchedList[0].BookID, updtReq.BookID)
 
+		//testing if the book was updated at bookstable:
+		bk, err := store.GetBookByID(ctx, updtReq.BookID)
+		is.NoErr(err)
+		is.True(*bk.Inventory == (*testBookslist[0].Inventory - updtReq.BookUnitsToAdd))
+		is.True(bk.UpdatedAt.Compare(bk.CreatedAt.Round(time.Millisecond)) > 0)
 	})
 }
 

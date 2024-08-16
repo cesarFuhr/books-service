@@ -351,12 +351,32 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 	if err != nil {
 		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
 	}
+	//====================================================================================
+
+	//IN CASE IT IS: ========================================================================
+
+	//REMEMBER: WRITE TESTS FIRST!
+
+	//========================================================================
 
 	//Updating book inventory acordingly at bookstable:
 	if balance == 0 { //Case inventory becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
-		//DROP ROW FROM BOOK_ORDERS TABLE
+		sqlStatement = `
+	DELETE FROM books_orders 
+	WHERE order_id = $1 AND book_id = $2;`
+		_, err := store.db.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
+		if err != nil {
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+		}
 	}
-	//UPDATE ROW AT BOOKSTABLE
+	sqlStatement = `
+	UPDATE bookstable
+	SET updated_at = $2, inventory = $3
+	WHERE id = $1`
+	_, err = store.db.ExecContext(ctx, sqlStatement, updtReq.BookID, time.Now().UTC().Round(time.Millisecond), balance)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+	}
 
 	//Commiting transaction:
 	_, err = store.db.ExecContext(ctx, `COMMIT;`)
