@@ -580,7 +580,7 @@ func TestUpdateOrder(t *testing.T) {
 		is.Equal(bookAtOrder.BookID, updtReq.BookID)
 		is.Equal(bookAtOrder.BookUnits, updtReq.BookUnitsToAdd) //In this test we are ADDING a book to an order, so BookUnits starts from zero.
 
-		//testing if the transaction was really commited:
+		//testing if the transaction was really commited: ASK FOR A FLAG ASSURING IT WAS COMMMITED INSTEAD OF CALLING LISTORDERITEMS!!!
 		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)

@@ -321,9 +321,6 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotAcceptingItems)
 	}
 
-	//Testing if the book is already at the order:
-	//IN CASE IT IS NOT: ========================================================================
-
 	//Testing if there are sufficient inventory of the book asked, and if is not archived:
 	bk, err := store.GetBookByID(ctx, updtReq.BookID)
 	if err != nil {
@@ -337,38 +334,47 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseInsufficientInventory)
 	}
 
-	//Adding a new book to the order:
-	bkItem := book.OrderItem{
-		OrderID:          updtReq.OrderID,
-		BookID:           updtReq.BookID,
-		BookUnits:        updtReq.BookUnitsToAdd,
-		BookPriceAtOrder: bk.Price,
-		CreatedAt:        time.Now().UTC().Round(time.Millisecond),
-		UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
-	}
-
-	itemToReturn, err = store.AddItemToOrder(ctx, bkItem)
+	//Testing if the book is already at the order and, if it is, updating it:
+	sqlStatement = `UPDATE books_orders
+	SET book_units = book_units + $3, updated_at = $4
+	WHERE order_id=$1 AND book_id=$2
+	RETURNING *;`
+	foundRow := store.db.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
+	var itemAtOrder book.OrderItem
+	err = foundRow.Scan(&itemAtOrder.OrderID, &itemAtOrder.BookID, &itemAtOrder.BookUnits, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
 	if err != nil {
-		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
-	}
-	//====================================================================================
+		switch err {
+		case sql.ErrNoRows:
+			//Adding a new book to the order:
+			bkItem := book.OrderItem{
+				OrderID:          updtReq.OrderID,
+				BookID:           updtReq.BookID,
+				BookUnits:        updtReq.BookUnitsToAdd,
+				BookPriceAtOrder: bk.Price,
+				CreatedAt:        time.Now().UTC().Round(time.Millisecond),
+				UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
+			}
 
-	//IN CASE IT IS: ========================================================================
-
-	//REMEMBER: WRITE TESTS FIRST!
-
-	//========================================================================
-
-	//Updating book inventory acordingly at bookstable:
-	if balance == 0 { //Case inventory becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
-		sqlStatement = `
-	DELETE FROM books_orders 
-	WHERE order_id = $1 AND book_id = $2;`
-		_, err := store.db.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
-		if err != nil {
+			itemToReturn, err = store.AddItemToOrder(ctx, bkItem)
+			if err != nil {
+				return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+			}
+		default:
 			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
 		}
+	} else { //Case book_units becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
+		if itemAtOrder.BookUnits == 0 {
+			sqlStatement = `
+	DELETE FROM books_orders 
+	WHERE order_id = $1 AND book_id = $2;`
+			_, err := store.db.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
+			if err != nil {
+				return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+			}
+		}
 	}
+
+	//Updating book inventory acordingly at bookstable:
 	sqlStatement = `
 	UPDATE bookstable
 	SET updated_at = $2, inventory = $3
