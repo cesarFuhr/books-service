@@ -340,19 +340,19 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 	WHERE order_id=$1 AND book_id=$2
 	RETURNING *;`
 	foundRow := store.db.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
-	var itemAtOrder book.OrderItem
-	err = foundRow.Scan(&itemAtOrder.OrderID, &itemAtOrder.BookID, &itemAtOrder.BookUnits, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
+	err = foundRow.Scan(&itemToReturn.OrderID, &itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
 			//Adding a new book to the order:
+			createdNow := time.Now().UTC().Round(time.Millisecond)
 			bkItem := book.OrderItem{
 				OrderID:          updtReq.OrderID,
 				BookID:           updtReq.BookID,
 				BookUnits:        updtReq.BookUnitsToAdd,
 				BookPriceAtOrder: bk.Price,
-				CreatedAt:        time.Now().UTC().Round(time.Millisecond),
-				UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
+				CreatedAt:        createdNow,
+				UpdatedAt:        createdNow,
 			}
 
 			itemToReturn, err = store.AddItemToOrder(ctx, bkItem)
@@ -363,7 +363,7 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
 		}
 	} else { //Case book_units becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
-		if itemAtOrder.BookUnits == 0 {
+		if itemToReturn.BookUnits == 0 {
 			sqlStatement = `
 	DELETE FROM books_orders 
 	WHERE order_id = $1 AND book_id = $2;`

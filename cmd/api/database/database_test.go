@@ -530,7 +530,7 @@ func TestUpdateOrder(t *testing.T) {
 			ID:        uuid.New(),
 			Name:      fmt.Sprintf("Book number %06v", i),
 			Price:     toPointer(float32((i * 100) + 1)),
-			Inventory: toPointer(3),
+			Inventory: toPointer(10),
 			CreatedAt: time.Now().UTC().Round(time.Millisecond),
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
 		}
@@ -557,40 +557,60 @@ func TestUpdateOrder(t *testing.T) {
 	t.Run("add an item to an order without errors", func(t *testing.T) {
 		is := is.New(t)
 
-		/* PASS IT TO DATABASE LAYER?
-		//changing books into itemAtOrder:
-		bkItem := book.OrderItem{
-			OrderID:          o.OrderID,
-			BookID:           testBookslist[0].ID,
-			BookUnits:        1,
-			BookPriceAtOrder: testBookslist[0].Price,
-			CreatedAt:        time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
-		}*/
-
 		updtReq := book.UpdateOrderRequest{
 			OrderID:        o.OrderID,
 			BookID:         testBookslist[0].ID,
-			BookUnitsToAdd: 2,
+			BookUnitsToAdd: 2, //In this subtest we are ADDING a book to an order, so BookUnits starts from zero and is supposed to result 2.
 		}
 
 		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
 		is.NoErr(err)
 		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
 		is.Equal(bookAtOrder.BookID, updtReq.BookID)
-		is.Equal(bookAtOrder.BookUnits, updtReq.BookUnitsToAdd) //In this test we are ADDING a book to an order, so BookUnits starts from zero.
+		is.Equal(bookAtOrder.BookUnits, 2)                                                                                 //In this subtest we are ADDING a book to an order, so BookUnits starts from zero and is supposed to result 2.
+		is.True(bookAtOrder.UpdatedAt.Round(time.Millisecond).Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) == 0) //Assuring it was CREATED at order
 
-		//testing if the transaction was really commited: ASK FOR A FLAG ASSURING IT WAS COMMMITED INSTEAD OF CALLING LISTORDERITEMS!!!
+		//testing if the order table was correctly updated:
 		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
 		is.Equal(fetchedList[0].BookID, updtReq.BookID)
+		is.True(fetchedList[0].UpdatedAt.Compare(fetchedList[0].CreatedAt.Round(time.Millisecond)) == 0)
 
 		//testing if the book was updated at bookstable:
 		bk, err := store.GetBookByID(ctx, updtReq.BookID)
 		is.NoErr(err)
-		is.True(*bk.Inventory == (*testBookslist[0].Inventory - updtReq.BookUnitsToAdd))
+		is.True(*bk.Inventory == 8) //10 - 2 = 8
 		is.True(bk.UpdatedAt.Compare(bk.CreatedAt.Round(time.Millisecond)) > 0)
+	})
+
+	t.Run("update an item at the order without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		updtReq := book.UpdateOrderRequest{
+			OrderID:        o.OrderID,
+			BookID:         testBookslist[0].ID,
+			BookUnitsToAdd: 3, //In the last subtest we already added 2 book units to this order, so this update must result 5.
+		}
+
+		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
+		is.NoErr(err)
+		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
+		is.Equal(bookAtOrder.BookID, updtReq.BookID)
+		is.Equal(bookAtOrder.BookUnits, 5)                                                        //In the last subtest we already added 2 book units to this order, so this update must result 5.
+		is.True(bookAtOrder.UpdatedAt.Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) > 0) //Assuring it was UPDATED at order
+
+		//testing if the book was correctly updated at book_orders table:
+		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		is.NoErr(err)
+		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
+		is.Equal(fetchedList[0].BookID, updtReq.BookID)
+		is.True(fetchedList[0].UpdatedAt.Compare(fetchedList[0].CreatedAt.Round(time.Millisecond)) > 0)
+
+		//testing if the book was updated at bookstable:
+		bk, err := store.GetBookByID(ctx, updtReq.BookID)
+		is.NoErr(err)
+		is.True(*bk.Inventory == 5) //8 - 3 = 5
 	})
 }
 
@@ -649,7 +669,7 @@ func teardownDB(t *testing.T) {
 	is := is.New(t)
 
 	// Truncating books table, cleaning up all the records.
-	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable CASCADE`) //SHOULD WE TRUNCATE THE OTHER TABLES TOO?????
+	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable, public.users, public.orders, public.books_orders, public.payments CASCADE`)
 	is.NoErr(err)
 
 	_, err = result.RowsAffected()
