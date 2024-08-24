@@ -612,6 +612,56 @@ func TestUpdateOrder(t *testing.T) {
 		is.NoErr(err)
 		is.True(*bk.Inventory == 5) //8 - 3 = 5
 	})
+
+	t.Run("update an item at the order subtracting all book units, restoring them to inventory, without errors", func(t *testing.T) {
+		is := is.New(t)
+
+		updtReq := book.UpdateOrderRequest{
+			OrderID:        o.OrderID,
+			BookID:         testBookslist[0].ID,
+			BookUnitsToAdd: -5, //In the last subtests we already added 2 + 3 book units to this order, so this update must result 0.
+		}
+
+		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
+		is.NoErr(err)
+		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
+		is.Equal(bookAtOrder.BookID, updtReq.BookID)
+		is.Equal(bookAtOrder.BookUnits, 0)                                                        //In the last subtests we already added 2 + 3 book units to this order, so this update must result 0.
+		is.True(bookAtOrder.UpdatedAt.Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) > 0) //Assuring it was UPDATED at order
+
+		//testing if the book was correctly deleted from book_orders table:
+		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		is.NoErr(err)
+		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
+		is.True(len(fetchedList) == 0)       //The list must be empty
+		o.UpdatedAt = fetchedOrder.UpdatedAt //Preparing for the next subtest
+
+		//testing if the book was updated at bookstable:
+		bk, err := store.GetBookByID(ctx, updtReq.BookID)
+		is.NoErr(err)
+		is.True(*bk.Inventory == 10) //5 - (-5) = 10
+	})
+
+	t.Run("update an order adding more units than the existent inventory, must return error Insuficcient Inventory", func(t *testing.T) {
+		is := is.New(t)
+
+		updtReq := book.UpdateOrderRequest{
+			OrderID:        o.OrderID,
+			BookID:         testBookslist[0].ID,
+			BookUnitsToAdd: 11, //current inventory is 10
+		}
+		lastUpdate := o.UpdatedAt //o.UpdatedAt was touched at last subtest
+
+		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
+		is.True(errors.Is(err, book.ErrResponseInsufficientInventory))
+		is.Equal(bookAtOrder, book.OrderItem{})
+
+		//testing if the transaction was rolled back:
+		fetchedOrder, _, err := store.ListOrderItems(ctx, o.OrderID)
+		is.NoErr(err)
+		is.True(fetchedOrder.UpdatedAt.Compare(lastUpdate) == 0) //Asserting that there was no change at this row.
+
+	})
 }
 
 // compareBooks asserts that two books are equal,
