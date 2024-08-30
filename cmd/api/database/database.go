@@ -294,11 +294,6 @@ func (store *Store) UpdateOrder(ctx context.Context, updtReq book.UpdateOrderReq
 
 	defer func() {
 		_, err = store.db.ExecContext(ctx, `ROLLBACK;`)
-
-		if err != nil {
-			itemToReturn = book.OrderItem{}
-			err = fmt.Errorf("rolling back transaction to update order on db: %w", err)
-		}
 	}()
 
 	//Updating row in orders table and checking if the order is accepting items:

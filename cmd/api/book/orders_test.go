@@ -27,7 +27,7 @@ func TestCreateOrder(t *testing.T) {
 
 		mockRepo.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, o book.Order) (book.Order, error) {
 			is.True(o.OrderID != uuid.Nil)
-			is.True(o.PurchaserID == someUser)
+			is.Equal(o.PurchaserID, someUser)
 			is.True(o.OrderStatus == "accepting_items")
 			is.True(o.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 			is.True(o.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
@@ -37,7 +37,7 @@ func TestCreateOrder(t *testing.T) {
 		newOrder, err := mS.CreateOrder(ctx, someUser)
 		is.NoErr(err)
 		is.True(newOrder.OrderID != uuid.Nil)
-		is.True(newOrder.PurchaserID == someUser)
+		is.Equal(newOrder.PurchaserID, someUser)
 		is.True(newOrder.OrderStatus == "accepting_items")
 		is.True(newOrder.CreatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
 		is.True(newOrder.UpdatedAt.Compare(time.Now().Round(time.Millisecond)) <= 0)
