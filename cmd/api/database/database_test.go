@@ -483,7 +483,6 @@ func TestListOrderItems(t *testing.T) {
 		for _, bk := range testBookslist {
 			//changing books into itemsAtOrder:
 			bkItem := book.OrderItem{
-				OrderID:          o.OrderID,
 				BookID:           bk.ID,
 				BookUnits:        bookUnits,
 				BookPriceAtOrder: bk.Price,
@@ -491,27 +490,25 @@ func TestListOrderItems(t *testing.T) {
 				UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
 			}
 
-			bookAtOrder, err := store.AddItemToOrder(ctx, bkItem)
+			bookAtOrder, err := store.AddItemToOrder(ctx, bkItem, o.OrderID)
 			is.NoErr(err)
 			storedList = append(storedList, bookAtOrder)
 		}
+		o.Items = storedList
 
 		//testing if it returns a valid list:
-		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		compareOrders(is, fetchedOrder, o)
-		for i, expected := range storedList {
-			compareItemsAtOrder(is, fetchedList[i], expected)
-		}
 	})
 
 	t.Run("lists items from an inexistent order should return a not found error", func(t *testing.T) {
 		is := is.New(t)
 
-		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, uuid.New())
+		fetchedOrder, err := store.ListOrderItems(ctx, uuid.New())
 		is.True(errors.Is(err, book.ErrResponseOrderNotFound))
 		compareOrders(is, fetchedOrder, book.Order{})
-		is.True(len(fetchedList) == 0)
+		is.True(len(fetchedOrder.Items) == 0)
 	})
 }
 
@@ -565,17 +562,16 @@ func TestUpdateOrder(t *testing.T) {
 
 		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
 		is.NoErr(err)
-		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
 		is.Equal(bookAtOrder.BookID, updtReq.BookID)
 		is.Equal(bookAtOrder.BookUnits, 2)                                                                                 //In this subtest we are ADDING a book to an order, so BookUnits starts from zero and is supposed to result 2.
 		is.True(bookAtOrder.UpdatedAt.Round(time.Millisecond).Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) == 0) //Assuring it was CREATED at order
 
 		//testing if the order table was correctly updated:
-		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
-		is.Equal(fetchedList[0].BookID, updtReq.BookID)
-		is.True(fetchedList[0].UpdatedAt.Compare(fetchedList[0].CreatedAt.Round(time.Millisecond)) == 0)
+		is.Equal(fetchedOrder.Items[0].BookID, updtReq.BookID)
+		is.True(fetchedOrder.Items[0].UpdatedAt.Compare(fetchedOrder.Items[0].CreatedAt.Round(time.Millisecond)) == 0)
 
 		//testing if the book was updated at bookstable:
 		bk, err := store.GetBookByID(ctx, updtReq.BookID)
@@ -595,17 +591,16 @@ func TestUpdateOrder(t *testing.T) {
 
 		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
 		is.NoErr(err)
-		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
 		is.Equal(bookAtOrder.BookID, updtReq.BookID)
 		is.Equal(bookAtOrder.BookUnits, 5)                                                        //In the last subtest we already added 2 book units to this order, so this update must result 5.
 		is.True(bookAtOrder.UpdatedAt.Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) > 0) //Assuring it was UPDATED at order
 
 		//testing if the book was correctly updated at book_orders table:
-		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
-		is.Equal(fetchedList[0].BookID, updtReq.BookID)
-		is.True(fetchedList[0].UpdatedAt.Compare(fetchedList[0].CreatedAt.Round(time.Millisecond)) > 0)
+		is.Equal(fetchedOrder.Items[0].BookID, updtReq.BookID)
+		is.True(fetchedOrder.Items[0].UpdatedAt.Compare(fetchedOrder.Items[0].CreatedAt.Round(time.Millisecond)) > 0)
 
 		//testing if the book was updated at bookstable:
 		bk, err := store.GetBookByID(ctx, updtReq.BookID)
@@ -624,17 +619,16 @@ func TestUpdateOrder(t *testing.T) {
 
 		bookAtOrder, err := store.UpdateOrder(ctx, updtReq)
 		is.NoErr(err)
-		is.Equal(bookAtOrder.OrderID, updtReq.OrderID)
 		is.Equal(bookAtOrder.BookID, updtReq.BookID)
 		is.Equal(bookAtOrder.BookUnits, 0)                                                        //In the last subtests we already added 2 + 3 book units to this order, so this update must result 0.
 		is.True(bookAtOrder.UpdatedAt.Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) > 0) //Assuring it was UPDATED at order
 
 		//testing if the book was correctly deleted from book_orders table:
-		fetchedOrder, fetchedList, err := store.ListOrderItems(ctx, o.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
-		is.True(len(fetchedList) == 0)       //The list must be empty
-		o.UpdatedAt = fetchedOrder.UpdatedAt //Preparing for the next subtest
+		is.True(len(fetchedOrder.Items) == 0) //The list must be empty
+		o.UpdatedAt = fetchedOrder.UpdatedAt  //Preparing for the next subtest
 
 		//testing if the book was updated at bookstable:
 		bk, err := store.GetBookByID(ctx, updtReq.BookID)
@@ -657,7 +651,7 @@ func TestUpdateOrder(t *testing.T) {
 		is.Equal(bookAtOrder, book.OrderItem{})
 
 		//testing if the transaction was rolled back:
-		fetchedOrder, _, err := store.ListOrderItems(ctx, o.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, o.OrderID)
 		is.NoErr(err)
 		is.True(fetchedOrder.UpdatedAt.Compare(lastUpdate) == 0) //Asserting that there was no change at this row.
 
@@ -682,21 +676,6 @@ func compareBooks(is *is.I, a, b book.Book) {
 }
 
 func compareOrders(is *is.I, a, b book.Order) {
-	is.Helper()
-
-	// Make sure we have the correct timestamps.
-	is.True(a.CreatedAt.Equal(b.CreatedAt))
-	is.True(a.UpdatedAt.Equal(b.UpdatedAt))
-
-	// Overwrite to be able to compare them.
-	b.CreatedAt = a.CreatedAt
-	b.UpdatedAt = a.UpdatedAt
-
-	// Assert that they are equal.
-	is.Equal(a, b)
-}
-
-func compareItemsAtOrder(is *is.I, a, b book.OrderItem) {
 	is.Helper()
 
 	// Make sure we have the correct timestamps.

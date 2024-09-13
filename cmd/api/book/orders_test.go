@@ -54,12 +54,12 @@ func TestListOrderItems(t *testing.T) {
 
 		newOrderID := uuid.New()
 
-		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{OrderID: newOrderID}, []book.OrderItem{}, nil)
+		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{OrderID: newOrderID}, nil)
 
-		list, err := mS.ListOrderItems(ctx, newOrderID)
+		order, err := mS.ListOrderItems(ctx, newOrderID)
 		is.NoErr(err)
-		is.Equal(list.Order.OrderID, newOrderID)
-		is.Equal(list.ItemsList, []book.OrderItem{})
+		is.Equal(order.OrderID, newOrderID)
+		is.Equal(order.Items, nil)
 	})
 
 	t.Run("expected error from database", func(t *testing.T) {
@@ -76,12 +76,12 @@ func TestListOrderItems(t *testing.T) {
 			Message: book.ErrResponseFromRespository.Message + dbErr.Error(),
 		}
 
-		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, []book.OrderItem{}, dbErr)
+		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, dbErr)
 
-		list, err := mS.ListOrderItems(ctx, newOrderID)
+		order, err := mS.ListOrderItems(ctx, newOrderID)
 		is.Equal(err, errRepo)
-		is.Equal(list.Order, book.Order{})
-		is.Equal(list.ItemsList, nil)
+		is.Equal(order, book.Order{})
+		is.Equal(order.Items, nil)
 	})
 
 	t.Run("expected context timeout error", func(t *testing.T) {
@@ -93,12 +93,12 @@ func TestListOrderItems(t *testing.T) {
 
 		newOrderID := uuid.New()
 
-		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, []book.OrderItem{}, context.DeadlineExceeded)
+		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, context.DeadlineExceeded)
 
-		list, err := mS.ListOrderItems(ctx, newOrderID)
+		order, err := mS.ListOrderItems(ctx, newOrderID)
 		is.Equal(err.Error(), "timeout on call to ListOrderItems: "+context.DeadlineExceeded.Error())
-		is.Equal(list.Order, book.Order{})
-		is.Equal(list.ItemsList, nil)
+		is.Equal(order, book.Order{})
+		is.Equal(order.Items, nil)
 	})
 }
 

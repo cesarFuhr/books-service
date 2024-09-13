@@ -116,13 +116,12 @@ func (mr *MockRepositoryMockRecorder) ListBooksTotals(arg0, arg1, arg2, arg3, ar
 }
 
 // ListOrderItems mocks base method.
-func (m *MockRepository) ListOrderItems(arg0 context.Context, arg1 uuid.UUID) (book.Order, []book.OrderItem, error) {
+func (m *MockRepository) ListOrderItems(arg0 context.Context, arg1 uuid.UUID) (book.Order, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListOrderItems", arg0, arg1)
 	ret0, _ := ret[0].(book.Order)
-	ret1, _ := ret[1].([]book.OrderItem)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ListOrderItems indicates an expected call of ListOrderItems.

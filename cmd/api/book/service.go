@@ -27,7 +27,7 @@ type Repository interface {
 	ListBooksTotals(ctx context.Context, name string, minPrice32, maxPrice32 float32, archived bool) (int, error)
 	UpdateBook(ctx context.Context, bookEntry Book) (Book, error)
 	CreateOrder(ctx context.Context, newOrder Order) (Order, error)
-	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, []OrderItem, error)
+	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error)
 }
 
 type Notifier interface {

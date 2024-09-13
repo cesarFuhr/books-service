@@ -15,6 +15,7 @@ type Order struct {
 	OrderStatus string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+	Items       []OrderItem
 }
 
 func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error) {
@@ -26,12 +27,12 @@ func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, er
 		OrderStatus: "accepting_items",
 		CreatedAt:   createdAt,
 		UpdatedAt:   createdAt,
+		Items:       []OrderItem{},
 	}
 	return s.repo.CreateOrder(ctx, newOrder)
 }
 
 type OrderItem struct {
-	OrderID          uuid.UUID
 	BookID           uuid.UUID
 	BookUnits        int
 	BookPriceAtOrder *float32
@@ -39,31 +40,21 @@ type OrderItem struct {
 	UpdatedAt        time.Time
 }
 
-type OrderItemsList struct {
-	Order     Order
-	ItemsList []OrderItem
-}
-
-func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (OrderItemsList, error) {
-	order, items, err := s.repo.ListOrderItems(ctx, order_id)
+func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error) {
+	order, err := s.repo.ListOrderItems(ctx, order_id)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return OrderItemsList{}, fmt.Errorf("timeout on call to ListOrderItems: %w", err)
+			return Order{}, fmt.Errorf("timeout on call to ListOrderItems: %w", err)
 		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
 			Message: ErrResponseFromRespository.Message + err.Error(),
 		}
-		return OrderItemsList{}, errRepo
+		return Order{}, errRepo
 
 	}
 
-	list := OrderItemsList{
-		Order:     order,
-		ItemsList: items,
-	}
-
-	return list, nil
+	return order, nil
 }
 
 type UpdateOrderRequest struct {
