@@ -19,6 +19,7 @@ type Order struct {
 }
 
 func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error) {
+
 	createdAt := time.Now().UTC().Round(time.Millisecond)
 
 	newOrder := Order{
@@ -41,6 +42,7 @@ type OrderItem struct {
 }
 
 func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error) {
+
 	order, err := s.repo.ListOrderItems(ctx, order_id)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -63,10 +65,66 @@ type UpdateOrderRequest struct {
 	BookUnitsToAdd int
 }
 
-/* WRITE THIS FUNCTION LATER...
-func (s *Service) UpdateOrder(ctx context.Context, req UpdateOrderRequest) (OrderItemsList, error) {
-	var updatedOrderItemsList OrderItemsList
+/* Updates an order stored in database through a transaction, adding or removing items(books) from it. */
+func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest) (Order, error) {
+	var updatedOrder Order
 
-	return updatedOrderItemsList, nil
+	txRepo, tx, err := s.repo.BeginTx(ctx, nil)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
+		}
+		errRepo := ErrResponse{
+			Code:    ErrResponseFromRespository.Code,
+			Message: ErrResponseFromRespository.Message + err.Error(),
+		}
+		return Order{}, errRepo
+	}
+
+	defer func() {
+		tx.Rollback()
+	}()
+
+	err = txRepo.UpdateOrderRow(ctx, updtReq.OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
+		}
+		errRepo := ErrResponse{
+			Code:    ErrResponseFromRespository.Code,
+			Message: ErrResponseFromRespository.Message + err.Error(),
+		}
+		return Order{}, errRepo
+	}
+
+	//Testing if there are sufficient inventory of the book asked, and if is not archived:
+	bk, err := txRepo.GetBookByID(ctx, updtReq.BookID)
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
+		}
+		errRepo := ErrResponse{
+			Code:    ErrResponseFromRespository.Code,
+			Message: ErrResponseFromRespository.Message + err.Error(),
+		}
+		return Order{}, errRepo
+	}
+	if bk.Archived {
+		return Order{}, fmt.Errorf("updating order on db: %w", ErrResponseBookIsArchived)
+	}
+	balance := *bk.Inventory - updtReq.BookUnitsToAdd
+	if balance < 0 {
+		return Order{}, fmt.Errorf("updating order on db: %w", ErrResponseInsufficientInventory)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		errRepo := ErrResponse{
+			Code:    ErrResponseFromRespository.Code,
+			Message: ErrResponseFromRespository.Message + err.Error(),
+		}
+		return Order{}, errRepo
+	}
+
+	return updatedOrder, nil
 }
-*/
