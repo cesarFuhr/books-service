@@ -10,6 +10,7 @@ package book
 
 import (
 	context "context"
+	sql "database/sql"
 	reflect "reflect"
 
 	book "github.com/books-service/cmd/api/book"
@@ -38,6 +39,22 @@ func NewMockRepository(ctrl *gomock.Controller) *MockRepository {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
+}
+
+// BeginTx mocks base method.
+func (m *MockRepository) BeginTx(arg0 context.Context, arg1 *sql.TxOptions) (book.Repository, *sql.Tx, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BeginTx", arg0, arg1)
+	ret0, _ := ret[0].(book.Repository)
+	ret1, _ := ret[1].(*sql.Tx)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// BeginTx indicates an expected call of BeginTx.
+func (mr *MockRepositoryMockRecorder) BeginTx(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginTx", reflect.TypeOf((*MockRepository)(nil).BeginTx), arg0, arg1)
 }
 
 // CreateBook mocks base method.
@@ -158,6 +175,20 @@ func (m *MockRepository) UpdateBook(arg0 context.Context, arg1 book.Book) (book.
 func (mr *MockRepositoryMockRecorder) UpdateBook(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBook", reflect.TypeOf((*MockRepository)(nil).UpdateBook), arg0, arg1)
+}
+
+// UpdateOrderRow mocks base method.
+func (m *MockRepository) UpdateOrderRow(arg0 context.Context, arg1 uuid.UUID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateOrderRow", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateOrderRow indicates an expected call of UpdateOrderRow.
+func (mr *MockRepositoryMockRecorder) UpdateOrderRow(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrderRow", reflect.TypeOf((*MockRepository)(nil).UpdateOrderRow), arg0, arg1)
 }
 
 // MockNotifier is a mock of Notifier interface.
