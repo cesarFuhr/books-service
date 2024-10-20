@@ -25,6 +25,7 @@ var ErrResponseOrderNotFound = ErrResponse{110, "order not found"}
 var ErrResponseOrderNotAcceptingItems = ErrResponse{111, "order not accepting items"}
 var ErrResponseBookIsArchived = ErrResponse{112, "book status is archived"}
 var ErrResponseInsufficientInventory = ErrResponse{113, "inventory is insufficient for this order"}
+var ErrResponseBookNotAtOrder = ErrResponse{114, "book is not at the order"}
 
 type ErrNotificationFailed struct {
 	statusCode int

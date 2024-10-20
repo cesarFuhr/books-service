@@ -314,7 +314,6 @@ func (store *Store) BeginTx(ctx context.Context, opts *sql.TxOptions) (book.Repo
 
 /* Updates a row in orders table and checks if the order is accepting items. */
 func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error {
-
 	sqlStatement := `
 	UPDATE orders
 	SET updated_at = $2
@@ -338,6 +337,37 @@ func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
 	return nil
 }
 
+/*Tests if the book is already at the order and, if it is, updates it */
+func (store *Store) UpdateBookAtOrder(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
+	sqlStatement := `UPDATE books_orders
+	SET book_units = book_units + $3, updated_at = $4
+	WHERE order_id=$1 AND book_id=$2
+	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at;`
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
+	var itemToReturn book.OrderItem
+	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseBookNotAtOrder)
+		default:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+		}
+	}
+	return itemToReturn, nil
+}
+
+func (store *Store) DeleteBookAtOrder(ctx context.Context, updtReq book.UpdateOrderRequest) error {
+	sqlStatement := `
+DELETE FROM books_orders
+WHERE order_id = $1 AND book_id = $2;`
+	_, err := store.exc.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
+	if err != nil {
+		return fmt.Errorf("updating order on db: %w", err)
+	}
+	return nil
+}
+
 /*
 
 	//Testing if the book is already at the order and, if it is, updating it:
@@ -349,7 +379,7 @@ func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
 	err = foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
-		case sql.ErrNoRows:
+		case sql.ErrNoRows://TESTAR SE BOOKUNITSTOADD É POSITIVO
 			//Adding a new book to the order:
 			createdNow := time.Now().UTC().Round(time.Millisecond)
 			bkItem := book.OrderItem{

@@ -31,6 +31,9 @@ type Repository interface {
 	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error)
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (Repository, *sql.Tx, error)
 	UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
+	UpdateBookAtOrder(ctx context.Context, updtReq UpdateOrderRequest) (OrderItem, error)
+	AddItemToOrder(ctx context.Context, newItemAtOrder OrderItem, orderID uuid.UUID) (OrderItem, error)
+	DeleteBookAtOrder(ctx context.Context, updtReq UpdateOrderRequest) error
 }
 
 type Notifier interface {
