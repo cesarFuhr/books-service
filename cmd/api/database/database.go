@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/books-service/cmd/api/book"
 	"github.com/golang-migrate/migrate/v4"
@@ -16,8 +17,32 @@ import (
 	_ "github.com/lib/pq"
 )
 
+type DBTX interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 type Store struct {
-	db *sql.DB
+	db  *sql.DB
+	exc *Exectuor
+}
+
+type Exectuor struct {
+	DBTX
+}
+
+func NewStore(db *sql.DB) *Store {
+	CurrentStore := &Store{
+		db:  db,
+		exc: NewExc(db),
+	}
+	return CurrentStore
+}
+
+func NewExc(dbtx DBTX) *Exectuor {
+	return &Exectuor{DBTX: dbtx}
 }
 
 /* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
@@ -35,11 +60,6 @@ func ConnectDb(connStr string) (*sql.DB, error) {
 
 	log.Println("Successfully connected!")
 	return sqlDB, nil
-}
-
-func NewStore(db *sql.DB) *Store {
-	CurrentStore := &Store{db: db}
-	return CurrentStore
 }
 
 func MigrationUp(store *Store, path string) error {
@@ -69,7 +89,7 @@ func (store *Store) SetBookArchiveStatus(ctx context.Context, id uuid.UUID, arch
 	SET archived = $2
 	WHERE id = $1
 	RETURNING *`
-	updatedRow := store.db.QueryRowContext(ctx, sqlStatement, id, archived)
+	updatedRow := store.exc.QueryRowContext(ctx, sqlStatement, id, archived)
 	var bookToReturn book.Book
 	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -90,11 +110,11 @@ func (store *Store) CreateBook(ctx context.Context, bookEntry book.Book) (book.B
 	INSERT INTO bookstable (id, name, price, inventory, created_at, updated_at)
 	VALUES ($1, $2, $3, $4, $5, $6)
 	RETURNING *`
-	createdRow := store.db.QueryRowContext(ctx, sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
+	createdRow := store.exc.QueryRowContext(ctx, sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.CreatedAt, bookEntry.UpdatedAt)
 	var bookToReturn book.Book
 	err := createdRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
-		return book.Book{}, fmt.Errorf("storing on db: %w", err)
+		return book.Book{}, fmt.Errorf("storing book on db: %w", err)
 	}
 
 	return bookToReturn, nil
@@ -105,7 +125,7 @@ func (store *Store) GetBookByID(ctx context.Context, id uuid.UUID) (book.Book, e
 	sqlStatement := `SELECT id, name, price, inventory, created_at, updated_at, archived
 	FROM bookstable 
 	WHERE id=$1;`
-	foundRow := store.db.QueryRowContext(ctx, sqlStatement, id)
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, id)
 	var bookToReturn book.Book
 	err := foundRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -138,7 +158,7 @@ func (store *Store) ListBooks(ctx context.Context, name string, minPrice32, maxP
 	ORDER BY `, sortBy, ` `, sortDirection, ` 
 	LIMIT `, limit, ` OFFSET `, offset, ` ;`)
 
-	rows, err := store.db.QueryContext(ctx, sqlStatement, name, minPrice32, maxPrice32, archived)
+	rows, err := store.exc.QueryContext(ctx, sqlStatement, name, minPrice32, maxPrice32, archived)
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
@@ -169,7 +189,7 @@ func (store *Store) UpdateBook(ctx context.Context, bookEntry book.Book) (book.B
 	SET name = $2, price = $3, inventory = $4, updated_at = $5
 	WHERE id = $1
 	RETURNING *`
-	updatedRow := store.db.QueryRowContext(ctx, sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
+	updatedRow := store.exc.QueryRowContext(ctx, sqlStatement, bookEntry.ID, bookEntry.Name, *bookEntry.Price, *bookEntry.Inventory, bookEntry.UpdatedAt)
 	var bookToReturn book.Book
 	err := updatedRow.Scan(&bookToReturn.ID, &bookToReturn.Name, &bookToReturn.Price, &bookToReturn.Inventory, &bookToReturn.CreatedAt, &bookToReturn.UpdatedAt, &bookToReturn.Archived)
 	if err != nil {
@@ -197,7 +217,7 @@ func (store *Store) ListBooksTotals(ctx context.Context, name string, minPrice32
 	AND (archived = $4 OR archived = FALSE)
 	AND price BETWEEN $2 AND $3;`
 
-	row := store.db.QueryRowContext(ctx, sqlStatement, name, minPrice32, maxPrice32, archived)
+	row := store.exc.QueryRowContext(ctx, sqlStatement, name, minPrice32, maxPrice32, archived)
 	var count int
 	err := row.Scan(&count)
 	if err != nil {
@@ -206,3 +226,200 @@ func (store *Store) ListBooksTotals(ctx context.Context, name string, minPrice32
 
 	return count, nil
 }
+
+/* Stores a new order into the database, checks and returns it if succeed. */
+func (store *Store) CreateOrder(ctx context.Context, newOrder book.Order) (book.Order, error) {
+	sqlStatement := `
+	INSERT INTO orders (order_id, purchaser_id, order_status, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING *`
+	createdRow := store.exc.QueryRowContext(ctx, sqlStatement, newOrder.OrderID, newOrder.PurchaserID, newOrder.OrderStatus, newOrder.CreatedAt, newOrder.UpdatedAt)
+	var orderToReturn book.Order
+	err := createdRow.Scan(&orderToReturn.OrderID, &orderToReturn.PurchaserID, &orderToReturn.OrderStatus, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
+	if err != nil {
+		return book.Order{}, fmt.Errorf("storing order on db: %w", err)
+	}
+
+	return orderToReturn, nil
+}
+
+func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (book.Order, error) {
+	sqlStatement := `SELECT order_id, purchaser_id, order_status, created_at, updated_at
+	FROM orders 
+	WHERE order_id=$1;`
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, order_id)
+	var orderToReturn book.Order
+	err := foundRow.Scan(&orderToReturn.OrderID, &orderToReturn.PurchaserID, &orderToReturn.OrderStatus, &orderToReturn.CreatedAt, &orderToReturn.UpdatedAt)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.Order{}, fmt.Errorf("listing order items from db: %w", book.ErrResponseOrderNotFound)
+		default:
+			return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
+		}
+	}
+
+	sqlStatement = `SELECT book_id, book_units, book_price_at_order, created_at, updated_at
+	FROM books_orders 
+	WHERE order_id=$1;`
+
+	rows, err := store.exc.QueryContext(ctx, sqlStatement, order_id)
+	if err != nil {
+		return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
+	}
+	defer rows.Close()
+	var itemAtOrder book.OrderItem
+	for rows.Next() {
+		err = rows.Scan(&itemAtOrder.BookID, &itemAtOrder.BookUnits, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
+		if err != nil {
+			return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
+		}
+
+		orderToReturn.Items = append(orderToReturn.Items, itemAtOrder)
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
+	}
+
+	return orderToReturn, nil
+}
+
+func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.OrderItem, orderID uuid.UUID) (book.OrderItem, error) {
+	sqlStatement := `
+	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6)
+	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at`
+	createdRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, newItemAtOrder.BookID, newItemAtOrder.BookUnits, *newItemAtOrder.BookPriceAtOrder, newItemAtOrder.CreatedAt, newItemAtOrder.UpdatedAt)
+	var itemToReturn book.OrderItem
+	err := createdRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("storing new item at order on db: %w", err)
+	}
+
+	return itemToReturn, nil
+}
+
+func (store *Store) BeginTx(ctx context.Context, opts *sql.TxOptions) (book.Repository, *sql.Tx, error) {
+	tx, err := store.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("beginning transaction: %w", err)
+	}
+
+	txRepo := NewStore(store.db)
+	txRepo.exc = NewExc(tx)
+	return txRepo, tx, nil
+}
+
+/* Updates a row in orders table and checks if the order is accepting items. */
+func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error {
+	sqlStatement := `
+	UPDATE orders
+	SET updated_at = $2
+	WHERE order_id = $1
+	RETURNING order_status`
+	updatedRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, time.Now().UTC().Round(time.Millisecond))
+	var o book.Order
+	err := updatedRow.Scan(&o.OrderStatus)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotFound)
+		default:
+			return fmt.Errorf("updating order on db: %w", err)
+		}
+	}
+	if o.OrderStatus != "accepting_items" {
+		return fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotAcceptingItems)
+	}
+
+	return nil
+}
+
+/*Tests if the book is already at the order and, if it is, updates it */
+func (store *Store) UpdateBookAtOrder(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
+	sqlStatement := `UPDATE books_orders
+	SET book_units = book_units + $3, updated_at = $4
+	WHERE order_id=$1 AND book_id=$2
+	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at;`
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
+	var itemToReturn book.OrderItem
+	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseBookNotAtOrder)
+		default:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+		}
+	}
+	return itemToReturn, nil
+}
+
+func (store *Store) DeleteBookAtOrder(ctx context.Context, updtReq book.UpdateOrderRequest) error {
+	sqlStatement := `
+DELETE FROM books_orders
+WHERE order_id = $1 AND book_id = $2;`
+	_, err := store.exc.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
+	if err != nil {
+		return fmt.Errorf("updating order on db: %w", err)
+	}
+	return nil
+}
+
+/*
+
+	//Testing if the book is already at the order and, if it is, updating it:
+	sqlStatement = `UPDATE books_orders
+	SET book_units = book_units + $3, updated_at = $4
+	WHERE order_id=$1 AND book_id=$2
+	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at;`
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
+	err = foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows://TESTAR SE BOOKUNITSTOADD É POSITIVO
+			//Adding a new book to the order:
+			createdNow := time.Now().UTC().Round(time.Millisecond)
+			bkItem := book.OrderItem{
+				BookID:           updtReq.BookID,
+				BookUnits:        updtReq.BookUnitsToAdd,
+				BookPriceAtOrder: bk.Price,
+				CreatedAt:        createdNow,
+				UpdatedAt:        createdNow,
+			}
+
+			itemToReturn, err = store.AddItemToOrder(ctx, bkItem, updtReq.OrderID)
+			if err != nil {
+				return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+			}
+		default:
+			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+		}
+	} else { //Case book_units becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
+		if itemToReturn.BookUnits == 0 {
+			sqlStatement = `
+	DELETE FROM books_orders
+	WHERE order_id = $1 AND book_id = $2;`
+			_, err := store.exc.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
+			if err != nil {
+				return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+			}
+		}
+	}
+
+	//Updating book inventory acordingly at bookstable:
+	sqlStatement = `
+	UPDATE bookstable
+	SET updated_at = $2, inventory = $3
+	WHERE id = $1`
+	_, err = store.exc.ExecContext(ctx, sqlStatement, updtReq.BookID, time.Now().UTC().Round(time.Millisecond), balance)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+	}
+
+	return itemToReturn, nil
+
+}
+*/
