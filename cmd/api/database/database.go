@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"log"
 	"time"
@@ -261,7 +262,8 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 
 	sqlStatement = `SELECT book_id, book_units, book_price_at_order, created_at, updated_at
 	FROM books_orders 
-	WHERE order_id=$1;`
+	WHERE order_id=$1
+	ORDER BY updated_at ASC;`
 
 	rows, err := store.exc.QueryContext(ctx, sqlStatement, order_id)
 	if err != nil {
@@ -301,7 +303,7 @@ func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.Orde
 	return itemToReturn, nil
 }
 
-func (store *Store) BeginTx(ctx context.Context, opts *sql.TxOptions) (book.Repository, *sql.Tx, error) {
+func (store *Store) BeginTx(ctx context.Context, opts *sql.TxOptions) (book.Repository, driver.Tx, error) {
 	tx, err := store.db.BeginTx(ctx, opts)
 	if err != nil {
 		return nil, nil, fmt.Errorf("beginning transaction: %w", err)
@@ -367,59 +369,3 @@ WHERE order_id = $1 AND book_id = $2;`
 	}
 	return nil
 }
-
-/*
-
-	//Testing if the book is already at the order and, if it is, updating it:
-	sqlStatement = `UPDATE books_orders
-	SET book_units = book_units + $3, updated_at = $4
-	WHERE order_id=$1 AND book_id=$2
-	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at;`
-	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
-	err = foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
-	if err != nil {
-		switch err {
-		case sql.ErrNoRows://TESTAR SE BOOKUNITSTOADD É POSITIVO
-			//Adding a new book to the order:
-			createdNow := time.Now().UTC().Round(time.Millisecond)
-			bkItem := book.OrderItem{
-				BookID:           updtReq.BookID,
-				BookUnits:        updtReq.BookUnitsToAdd,
-				BookPriceAtOrder: bk.Price,
-				CreatedAt:        createdNow,
-				UpdatedAt:        createdNow,
-			}
-
-			itemToReturn, err = store.AddItemToOrder(ctx, bkItem, updtReq.OrderID)
-			if err != nil {
-				return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
-			}
-		default:
-			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
-		}
-	} else { //Case book_units becomes zero, the row is excluded from book_orders table. Even so, it must be updated at bookstable.
-		if itemToReturn.BookUnits == 0 {
-			sqlStatement = `
-	DELETE FROM books_orders
-	WHERE order_id = $1 AND book_id = $2;`
-			_, err := store.exc.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
-			if err != nil {
-				return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
-			}
-		}
-	}
-
-	//Updating book inventory acordingly at bookstable:
-	sqlStatement = `
-	UPDATE bookstable
-	SET updated_at = $2, inventory = $3
-	WHERE id = $1`
-	_, err = store.exc.ExecContext(ctx, sqlStatement, updtReq.BookID, time.Now().UTC().Round(time.Millisecond), balance)
-	if err != nil {
-		return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
-	}
-
-	return itemToReturn, nil
-
-}
-*/

@@ -26,6 +26,7 @@ var ErrResponseOrderNotAcceptingItems = ErrResponse{111, "order not accepting it
 var ErrResponseBookIsArchived = ErrResponse{112, "book status is archived"}
 var ErrResponseInsufficientInventory = ErrResponse{113, "inventory is insufficient for this order"}
 var ErrResponseBookNotAtOrder = ErrResponse{114, "book is not at the order"}
+var ErrResponseUpdateRequestNotPositive = ErrResponse{115, "field book_units_to_add of an update request must be positive for a book that is not at the order"}
 
 type ErrNotificationFailed struct {
 	statusCode int
