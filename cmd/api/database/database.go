@@ -20,7 +20,6 @@ import (
 
 type DBTX interface {
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
@@ -44,6 +43,17 @@ func NewStore(db *sql.DB) *Store {
 
 func NewExc(dbtx DBTX) *Exectuor {
 	return &Exectuor{DBTX: dbtx}
+}
+
+func (store *Store) BeginTx(ctx context.Context, opts *sql.TxOptions) (book.Repository, driver.Tx, error) {
+	tx, err := store.db.BeginTx(ctx, opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("beginning transaction: %w", err)
+	}
+
+	txRepo := NewStore(store.db)
+	txRepo.exc = NewExc(tx)
+	return txRepo, tx, nil
 }
 
 /* Connects to the database trought a connection string and returns a pointer to a valid DB object (*sql.DB). */
@@ -278,6 +288,8 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 		}
 
 		orderToReturn.Items = append(orderToReturn.Items, itemAtOrder)
+
+		orderToReturn.TotalPrice = orderToReturn.TotalPrice + (*itemAtOrder.BookPriceAtOrder * float32(itemAtOrder.BookUnits))
 	}
 
 	err = rows.Err()
@@ -301,17 +313,6 @@ func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.Orde
 	}
 
 	return itemToReturn, nil
-}
-
-func (store *Store) BeginTx(ctx context.Context, opts *sql.TxOptions) (book.Repository, driver.Tx, error) {
-	tx, err := store.db.BeginTx(ctx, opts)
-	if err != nil {
-		return nil, nil, fmt.Errorf("beginning transaction: %w", err)
-	}
-
-	txRepo := NewStore(store.db)
-	txRepo.exc = NewExc(tx)
-	return txRepo, tx, nil
 }
 
 /* Updates a row in orders table and checks if the order is accepting items. */

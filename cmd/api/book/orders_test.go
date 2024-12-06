@@ -122,6 +122,7 @@ func TestUpdateOrderTX(t *testing.T) {
 			CreatedAt:   time.Now().UTC().Round(time.Millisecond),
 			UpdatedAt:   time.Now().UTC().Round(time.Millisecond),
 			Items:       []book.OrderItem{},
+			TotalPrice:  0,
 		}
 		bkToAdd := book.Book{
 			ID: uuid.New(),
@@ -164,18 +165,20 @@ func TestUpdateOrderTX(t *testing.T) {
 		mockTxRepo.EXPECT().ListOrderItems(gomock.Any(), updtReq.OrderID).DoAndReturn(func(ctx context.Context, order_id uuid.UUID) (book.Order, error) {
 			orderToUpdt.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
 			orderToUpdt.Items = append(orderToUpdt.Items, newItemAtOrder)
+			orderToUpdt.TotalPrice = float32(updtReq.BookUnitsToAdd) * *bkToAdd.Price
 			return orderToUpdt, nil
 		})
 		mockTx.EXPECT().Commit().Return(nil)
 
 		mockTx.EXPECT().Rollback().Return(sql.ErrTxDone) //THIS IS ERROR IS NEVER TESTED, ISN'T IT??
 
-		updatedOrder, err := mS.UpdateOrderTx(ctx, updtReq)
+		updatedOrder, err := mS.UpdateOrderTx(ctx, updtReq) //MISSING TEST THE TOTALS!!!!
 		is.NoErr(err)
 		is.Equal(updatedOrder.OrderID, updtReq.OrderID)
 		is.True(updatedOrder.UpdatedAt.Compare(updatedOrder.CreatedAt) > 0)
 		is.Equal(updatedOrder.Items[0].BookID, updtReq.BookID)
 		is.Equal(updatedOrder.Items[0].BookUnits, 5)
+		is.Equal(updatedOrder.TotalPrice, float32(250)) //50.00 *  5
 		is.True(updatedOrder.Items[0].UpdatedAt.Compare(updatedOrder.Items[0].CreatedAt.Round(time.Millisecond)) == 0)
 
 	})

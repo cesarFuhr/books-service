@@ -449,7 +449,7 @@ func TestListOrderItems(t *testing.T) {
 		b := book.Book{
 			ID:        uuid.New(),
 			Name:      fmt.Sprintf("Book number %06v", i),
-			Price:     toPointer(float32((i * 100) + 1)),
+			Price:     toPointer(float32(2)),
 			Inventory: toPointer(i + 1),
 			CreatedAt: time.Now().UTC().Round(time.Millisecond),
 			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
@@ -495,6 +495,7 @@ func TestListOrderItems(t *testing.T) {
 			storedList = append(storedList, bookAtOrder)
 		}
 		o.Items = storedList
+		o.TotalPrice = 10 //Each item at list has 1 unit with price 2. List size is 5. So total price should result 10.
 
 		//testing if it returns a valid list:
 		fetchedOrder, err := store.ListOrderItems(ctx, o.OrderID)

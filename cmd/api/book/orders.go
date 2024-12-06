@@ -16,6 +16,7 @@ type Order struct {
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Items       []OrderItem
+	TotalPrice  float32
 }
 
 func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error) {
