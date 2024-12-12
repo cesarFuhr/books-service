@@ -172,7 +172,7 @@ func TestUpdateOrderTX(t *testing.T) {
 
 		mockTx.EXPECT().Rollback().Return(sql.ErrTxDone) //THIS IS ERROR IS NEVER TESTED, ISN'T IT??
 
-		updatedOrder, err := mS.UpdateOrderTx(ctx, updtReq) //MISSING TEST THE TOTALS!!!!
+		updatedOrder, err := mS.UpdateOrderTx(ctx, updtReq)
 		is.NoErr(err)
 		is.Equal(updatedOrder.OrderID, updtReq.OrderID)
 		is.True(updatedOrder.UpdatedAt.Compare(updatedOrder.CreatedAt) > 0)

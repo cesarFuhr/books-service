@@ -88,6 +88,10 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
+		} else if errors.Is(err, ErrResponseOrderNotFound) {
+			return Order{}, ErrResponseOrderNotFound
+		} else if errors.Is(err, ErrResponseOrderNotAcceptingItems) {
+			return Order{}, ErrResponseOrderNotAcceptingItems
 		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,

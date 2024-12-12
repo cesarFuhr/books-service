@@ -13,7 +13,7 @@ func (e ErrResponse) Error() string {
 
 var ErrResponseBookEntryBlankFileds = ErrResponse{100, "all the fields - name, price and inventory - must be filled correctly."}
 var ErrResponseBookNotFound = ErrResponse{101, "book not found"}
-var ErrResponseBookEntryInvalidJSON = ErrResponse{102, "invalid json request."}
+var ErrResponseEntryInvalidJSON = ErrResponse{102, "invalid json request."}
 var ErrResponseIdInvalidFormat = ErrResponse{103, "the endpoint is not a valid format ID. Must be /books/{uuid}"}
 var ErrResponseQueryPriceInvalidFormat = ErrResponse{104, "query parameter 'price' must be a float between 0 and 9999.99"}
 var ErrResponseQuerySortByInvalid = ErrResponse{105, "query parameter 'sort_by' must be: name, price, inventory, created_at or updated_at. 'sort_direction' must be asc or desc."}
@@ -27,6 +27,7 @@ var ErrResponseBookIsArchived = ErrResponse{112, "book status is archived"}
 var ErrResponseInsufficientInventory = ErrResponse{113, "inventory is insufficient for this order"}
 var ErrResponseBookNotAtOrder = ErrResponse{114, "book is not at the order"}
 var ErrResponseUpdateRequestNotPositive = ErrResponse{115, "field book_units_to_add of an update request must be positive for a book that is not at the order"}
+var ErrResponseUpdateOrderEntryBlankFileds = ErrResponse{116, "all the fields - order_id, book_id and book_units_to_add - must be filled correctly."}
 
 type ErrNotificationFailed struct {
 	statusCode int

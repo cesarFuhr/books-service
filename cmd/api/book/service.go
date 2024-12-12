@@ -19,6 +19,7 @@ type ServiceAPI interface {
 	GetBook(ctx context.Context, id uuid.UUID) (Book, error)
 	ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error)
 	UpdateBook(ctx context.Context, req UpdateBookRequest) (Book, error)
+	UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest) (Order, error)
 }
 
 type Repository interface {
