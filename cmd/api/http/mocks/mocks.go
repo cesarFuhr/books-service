@@ -70,6 +70,21 @@ func (mr *MockServiceAPIMockRecorder) CreateBook(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBook", reflect.TypeOf((*MockServiceAPI)(nil).CreateBook), arg0, arg1)
 }
 
+// CreateOrder mocks base method.
+func (m *MockServiceAPI) CreateOrder(arg0 context.Context, arg1 uuid.UUID) (book.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateOrder", arg0, arg1)
+	ret0, _ := ret[0].(book.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateOrder indicates an expected call of CreateOrder.
+func (mr *MockServiceAPIMockRecorder) CreateOrder(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrder", reflect.TypeOf((*MockServiceAPI)(nil).CreateOrder), arg0, arg1)
+}
+
 // GetBook mocks base method.
 func (m *MockServiceAPI) GetBook(arg0 context.Context, arg1 uuid.UUID) (book.Book, error) {
 	m.ctrl.T.Helper()
@@ -98,6 +113,21 @@ func (m *MockServiceAPI) ListBooks(arg0 context.Context, arg1 book.ListBooksRequ
 func (mr *MockServiceAPIMockRecorder) ListBooks(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListBooks", reflect.TypeOf((*MockServiceAPI)(nil).ListBooks), arg0, arg1)
+}
+
+// ListOrderItems mocks base method.
+func (m *MockServiceAPI) ListOrderItems(arg0 context.Context, arg1 uuid.UUID) (book.Order, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListOrderItems", arg0, arg1)
+	ret0, _ := ret[0].(book.Order)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListOrderItems indicates an expected call of ListOrderItems.
+func (mr *MockServiceAPIMockRecorder) ListOrderItems(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOrderItems", reflect.TypeOf((*MockServiceAPI)(nil).ListOrderItems), arg0, arg1)
 }
 
 // UpdateBook mocks base method.

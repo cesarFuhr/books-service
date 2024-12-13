@@ -18,8 +18,10 @@ type ServiceAPI interface {
 	CreateBook(ctx context.Context, req CreateBookRequest) (Book, error)
 	GetBook(ctx context.Context, id uuid.UUID) (Book, error)
 	ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error)
+	CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error)
 	UpdateBook(ctx context.Context, req UpdateBookRequest) (Book, error)
 	UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest) (Order, error)
+	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error)
 }
 
 type Repository interface {

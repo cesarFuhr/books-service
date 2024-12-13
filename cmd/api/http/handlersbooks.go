@@ -250,13 +250,13 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 /* Verifies if all Book entry fields are filled and returns a warning message if so. */
 func FilledBookFields(bookEntry BookEntry) error {
 	if bookEntry.Name == "" {
-		return book.ErrResponseBookEntryBlankFileds
+		return book.ErrResponseBookEntryBlankFields
 	}
 	if bookEntry.Price == nil {
-		return book.ErrResponseBookEntryBlankFileds
+		return book.ErrResponseBookEntryBlankFields
 	}
 	if bookEntry.Inventory == nil {
-		return book.ErrResponseBookEntryBlankFileds
+		return book.ErrResponseBookEntryBlankFields
 	}
 
 	return nil

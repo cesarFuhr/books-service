@@ -23,9 +23,9 @@ func (h *BookHandler) order(w http.ResponseWriter, r *http.Request) {
 	case http.MethodPost:
 		h.createOrder(w, r)
 		return
-	/*	case http.MethodGet:
+	case http.MethodGet:
 		h.listOrderItems(w, r)
-		return	*/
+		return
 	case http.MethodPut:
 		h.updateOrder(w, r)
 		return
@@ -35,9 +35,35 @@ func (h *BookHandler) order(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type NewOrderEntry struct {
+	UserID uuid.UUID `json:"user_id"`
+}
+
 /* Validates the entry, then creates an empty order. */
 func (h *BookHandler) createOrder(w http.ResponseWriter, r *http.Request) {
+	var newOrderEntry NewOrderEntry
+	err := json.NewDecoder(r.Body).Decode(&newOrderEntry)
+	if err != nil {
+		log.Println(err)
+		errR := book.ErrResponse{
+			Code:    book.ErrResponseEntryInvalidJSON.Code,
+			Message: book.ErrResponseEntryInvalidJSON.Message + err.Error(),
+		}
+		responseJSON(w, http.StatusBadRequest, errR)
+		return
+	}
 
+	if newOrderEntry.UserID.String() == "" {
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseNewOrderEntryBlankFields)
+	}
+
+	newOrder, err := h.bookService.CreateOrder(r.Context(), newOrderEntry.UserID)
+	if err != nil {
+		handleError(err, w, r)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, orderToResponse(newOrder))
 }
 
 type UpdateOrderEntry struct {
@@ -80,13 +106,13 @@ func (h *BookHandler) updateOrder(w http.ResponseWriter, r *http.Request) {
 /* Verifies if all UpdateOrder entry fields are filled and returns a warning message if so. */
 func FilledUpdtOrderFields(updtOrderEntry UpdateOrderEntry) error {
 	if updtOrderEntry.OrderID.String() == "" {
-		return book.ErrResponseUpdateOrderEntryBlankFileds
+		return book.ErrResponseUpdateOrderEntryBlankFields
 	}
 	if updtOrderEntry.BookID.String() == "" {
-		return book.ErrResponseUpdateOrderEntryBlankFileds
+		return book.ErrResponseUpdateOrderEntryBlankFields
 	}
 	if updtOrderEntry.BookUnitsToAdd == 0 { //If this value comes 0, than nothing changes, so it's not valid.
-		return book.ErrResponseUpdateOrderEntryBlankFileds
+		return book.ErrResponseUpdateOrderEntryBlankFields
 	}
 
 	return nil
@@ -138,4 +164,35 @@ func orderItemToResponse(i book.OrderItem) OrderItemResponse {
 		BookUnits:        i.BookUnits,
 		BookPriceAtOrder: i.BookPriceAtOrder,
 	}
+}
+
+type ListItemsEntry struct {
+	OrderID uuid.UUID `json:"order_id"`
+}
+
+/* Validates the entry, then creates an empty order. */
+func (h *BookHandler) listOrderItems(w http.ResponseWriter, r *http.Request) {
+	var listItemsEntry ListItemsEntry
+	err := json.NewDecoder(r.Body).Decode(&listItemsEntry)
+	if err != nil {
+		log.Println(err)
+		errR := book.ErrResponse{
+			Code:    book.ErrResponseEntryInvalidJSON.Code,
+			Message: book.ErrResponseEntryInvalidJSON.Message + err.Error(),
+		}
+		responseJSON(w, http.StatusBadRequest, errR)
+		return
+	}
+
+	if listItemsEntry.OrderID.String() == "" {
+		responseJSON(w, http.StatusBadRequest, book.ErrResponseListOrderItemsEntryBlankFields)
+	}
+
+	order, err := h.bookService.ListOrderItems(r.Context(), listItemsEntry.OrderID)
+	if err != nil {
+		handleError(err, w, r)
+		return
+	}
+
+	responseJSON(w, http.StatusOK, orderToResponse(order))
 }

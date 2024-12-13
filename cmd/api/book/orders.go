@@ -15,8 +15,8 @@ type Order struct {
 	OrderStatus string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	Items       []OrderItem
 	TotalPrice  float32
+	Items       []OrderItem
 }
 
 func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error) {
@@ -29,6 +29,7 @@ func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, er
 		OrderStatus: "accepting_items",
 		CreatedAt:   createdAt,
 		UpdatedAt:   createdAt,
+		TotalPrice:  0,
 		Items:       []OrderItem{},
 	}
 	return s.repo.CreateOrder(ctx, newOrder)
@@ -105,6 +106,8 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
+		} else if errors.Is(err, ErrResponseBookNotFound) {
+			return Order{}, ErrResponseBookNotFound
 		}
 		errRepo := ErrResponse{
 			Code:    ErrResponseFromRespository.Code,
@@ -162,6 +165,9 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 		}
 	} else { //Case the book is already at the order, and book_units becomes zero from update, the book is excluded from the order. Even so, it must be updated at bookstable.
 		if bookAtOrder.BookUnits == 0 {
+
+			//HANDLE THE CASE WHERE book_units BECOMES NEGATIVE!!!
+
 			err = txRepo.DeleteBookAtOrder(ctx, updtReq)
 			if err != nil {
 				if errors.Is(err, context.DeadlineExceeded) {
@@ -191,7 +197,7 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 		return Order{}, errRepo
 	}
 
-	updatedOrder, err := txRepo.ListOrderItems(ctx, updtReq.OrderID) //AND THE TOTALS?????
+	updatedOrder, err := txRepo.ListOrderItems(ctx, updtReq.OrderID)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)

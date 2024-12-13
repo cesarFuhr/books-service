@@ -11,7 +11,7 @@ func (e ErrResponse) Error() string {
 	return e.Message
 }
 
-var ErrResponseBookEntryBlankFileds = ErrResponse{100, "all the fields - name, price and inventory - must be filled correctly."}
+var ErrResponseBookEntryBlankFields = ErrResponse{100, "all the fields - name, price and inventory - must be filled correctly."}
 var ErrResponseBookNotFound = ErrResponse{101, "book not found"}
 var ErrResponseEntryInvalidJSON = ErrResponse{102, "invalid json request."}
 var ErrResponseIdInvalidFormat = ErrResponse{103, "the endpoint is not a valid format ID. Must be /books/{uuid}"}
@@ -27,7 +27,9 @@ var ErrResponseBookIsArchived = ErrResponse{112, "book status is archived"}
 var ErrResponseInsufficientInventory = ErrResponse{113, "inventory is insufficient for this order"}
 var ErrResponseBookNotAtOrder = ErrResponse{114, "book is not at the order"}
 var ErrResponseUpdateRequestNotPositive = ErrResponse{115, "field book_units_to_add of an update request must be positive for a book that is not at the order"}
-var ErrResponseUpdateOrderEntryBlankFileds = ErrResponse{116, "all the fields - order_id, book_id and book_units_to_add - must be filled correctly."}
+var ErrResponseUpdateOrderEntryBlankFields = ErrResponse{116, "all the fields - order_id, book_id and book_units_to_add - must be filled correctly."}
+var ErrResponseNewOrderEntryBlankFields = ErrResponse{117, "field user_id must be filled correctly."}
+var ErrResponseListOrderItemsEntryBlankFields = ErrResponse{118, "field order_id must be filled correctly."}
 
 type ErrNotificationFailed struct {
 	statusCode int
