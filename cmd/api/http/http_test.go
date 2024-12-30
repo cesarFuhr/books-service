@@ -334,3 +334,7 @@ func pagedBooksToResponse(page book.PagedBooks) PageOfBooksResponse {
 		Results:     results,
 	}
 }
+
+//func TestCreateOrder(t *testing.T) { TO DO }
+
+//func TestUpdateOrder(t *testing.T) { TO DO }

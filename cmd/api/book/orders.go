@@ -164,9 +164,9 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 			}
 		}
 	} else { //Case the book is already at the order, and book_units becomes zero from update, the book is excluded from the order. Even so, it must be updated at bookstable.
-		if bookAtOrder.BookUnits == 0 {
+		if bookAtOrder.BookUnits <= 0 {
 
-			//HANDLE THE CASE WHERE book_units BECOMES NEGATIVE!!!
+			balance = balance + bookAtOrder.BookUnits //Ajusting the balance in case book_units becomes negative
 
 			err = txRepo.DeleteBookAtOrder(ctx, updtReq)
 			if err != nil {
