@@ -486,11 +486,9 @@ func TestListOrderItems(t *testing.T) {
 				BookID:           bk.ID,
 				BookUnits:        bookUnits,
 				BookPriceAtOrder: bk.Price,
-				CreatedAt:        time.Now().UTC().Round(time.Millisecond),
-				UpdatedAt:        time.Now().UTC().Round(time.Millisecond),
 			}
 
-			bookAtOrder, err := store.AddItemToOrder(ctx, bkItem, o.OrderID)
+			bookAtOrder, err := store.UpsertOrderItem(ctx, o.OrderID, bkItem)
 			is.NoErr(err)
 			storedList = append(storedList, bookAtOrder)
 		}
@@ -557,11 +555,10 @@ func TestUpdateOrderTx(t *testing.T) {
 	t.Run("add an item to an order without errors", func(t *testing.T) {
 		is := is.New(t)
 
-		updtReq := book.UpdateOrderRequest{
-			OrderID:        o.OrderID,
-			BookID:         testBookslist[0].ID,
-			BookUnitsToAdd: 2, //In this subtest we are ADDING a book to an order, so BookUnits starts from zero and is supposed to result 2.
-		}
+		//Setting up variables to this subtest:
+		OrderID := o.OrderID
+		BookID := testBookslist[0].ID
+		BookUnitsToAdd := 2 //In this subtest we are ADDING a book to an order, so BookUnits starts from zero and is supposed to result 2.
 
 		txRepo, tx, err := store.BeginTx(ctx, nil) //creates a new 'Store' with same sql.db, but with a sql.tx as the 'Executor'
 		is.NoErr(err)
@@ -571,36 +568,37 @@ func TestUpdateOrderTx(t *testing.T) {
 			is.True(errors.Is(rollbackErr, sql.ErrTxDone))
 		}()
 
-		err = txRepo.UpdateOrderRow(ctx, updtReq.OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
+		err = txRepo.UpdateOrderRow(ctx, OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
 		is.NoErr(err)
 
 		//Testing if there are sufficient inventory of the book asked, and if is not archived:
-		bk, err := txRepo.GetBookByID(ctx, updtReq.BookID)
+		bk, err := txRepo.GetBookByID(ctx, BookID)
 		is.NoErr(err)
 		is.True(!bk.Archived)
-		balance := *bk.Inventory - updtReq.BookUnitsToAdd
+		balance := *bk.Inventory - BookUnitsToAdd
 		is.True(balance >= 0)
 
 		//Testing if the book is already at the order. It is expected not to be.
-		bookAtOrder, err := txRepo.UpdateBookAtOrder(ctx, updtReq)
+		bookAtOrder, err := txRepo.GetOrderItem(ctx, OrderID, BookID)
 		is.Equal(bookAtOrder, book.OrderItem{})
 		is.True(errors.Is(err, book.ErrResponseBookNotAtOrder))
 
-		//Considering that the book is not at the order yet, this call to UpdateOrderTX only makes sense if BookUnitsToAdd is positive.
-		if updtReq.BookUnitsToAdd > 0 { //In this test case, it is 2. Other scenarios must be tested.
-			//Adding a new book to the order:
-			createdNow := time.Now().UTC().Round(time.Millisecond)
-			bkItem := book.OrderItem{
-				BookID:           updtReq.BookID,
-				BookUnits:        updtReq.BookUnitsToAdd,
-				BookPriceAtOrder: bk.Price,
-				CreatedAt:        createdNow,
-				UpdatedAt:        createdNow,
-			}
-
-			bookAtOrder, err = txRepo.AddItemToOrder(ctx, bkItem, updtReq.OrderID)
-			is.NoErr(err)
+		//In this test case, the book is not at the order yet, and BookUnitsToAdd is 2, so the orderItem must be created:
+		bkItem := book.OrderItem{
+			BookID:           BookID,
+			BookName:         "New Book to test",
+			BookUnits:        BookUnitsToAdd,
+			BookPriceAtOrder: bk.Price,
+			//Created_at and Updated_at fields will be set properly at database layer
 		}
+
+		bookAtOrder, err = txRepo.UpsertOrderItem(ctx, OrderID, bkItem)
+		is.NoErr(err)
+		is.Equal(bkItem.BookID, bookAtOrder.BookID)
+		//is.Equal(bkItem.BookName, bookAtOrder.BookName)
+		is.Equal(bkItem.BookUnits, bookAtOrder.BookUnits) //Expected to be equal because the book was just created.
+		is.Equal(bkItem.BookPriceAtOrder, bookAtOrder.BookPriceAtOrder)
+		is.True(bookAtOrder.UpdatedAt.Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) == 0) //Expected to be equal because the book was just created.
 
 		//Updating book inventory acordingly at bookstable:
 		*bk.Inventory = balance
@@ -613,14 +611,14 @@ func TestUpdateOrderTx(t *testing.T) {
 		is.NoErr(err)
 
 		//testing if the order table was correctly updated:
-		fetchedOrder, err := store.ListOrderItems(ctx, updtReq.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, OrderID)
 		is.NoErr(err)
 		is.Equal(bookAtOrder, fetchedOrder.Items[0])
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
 		is.True(fetchedOrder.Items[0].UpdatedAt.Compare(fetchedOrder.Items[0].CreatedAt.Round(time.Millisecond)) == 0)
 
 		//testing if the book was updated at bookstable:
-		fetchedBook, err := store.GetBookByID(ctx, updtReq.BookID)
+		fetchedBook, err := store.GetBookByID(ctx, BookID)
 		is.NoErr(err)
 		is.True(*fetchedBook.Inventory == 8) //10 - 2 = 8
 		is.True(fetchedBook.UpdatedAt.Compare(fetchedBook.CreatedAt.Round(time.Millisecond)) > 0)
@@ -629,11 +627,10 @@ func TestUpdateOrderTx(t *testing.T) {
 	t.Run("update an item at the order without errors", func(t *testing.T) {
 		is := is.New(t)
 
-		updtReq := book.UpdateOrderRequest{
-			OrderID:        o.OrderID,
-			BookID:         testBookslist[0].ID,
-			BookUnitsToAdd: 3, //In the last subtest we already added 2 book units to this order, so this update must result 5.
-		}
+		//Setting up variables to this subtest:
+		OrderID := o.OrderID
+		BookID := testBookslist[0].ID
+		BookUnitsToAdd := 3 //In the last subtest we already added 2 book units to this order, so this update must result 5.
 
 		txRepo, tx, err := store.BeginTx(ctx, nil) //creates a new 'Store' with same sql.db, but with a sql.tx as the 'Executor'
 		is.NoErr(err)
@@ -643,20 +640,28 @@ func TestUpdateOrderTx(t *testing.T) {
 			is.True(errors.Is(rollbackErr, sql.ErrTxDone))
 		}()
 
-		err = txRepo.UpdateOrderRow(ctx, updtReq.OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
+		err = txRepo.UpdateOrderRow(ctx, OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
 		is.NoErr(err)
 
 		//Testing if there are sufficient inventory of the book asked, and if is not archived:
-		bk, err := txRepo.GetBookByID(ctx, updtReq.BookID)
+		bk, err := txRepo.GetBookByID(ctx, BookID)
 		is.NoErr(err)
 		is.True(!bk.Archived)
-		balance := *bk.Inventory - updtReq.BookUnitsToAdd
+		balance := *bk.Inventory - BookUnitsToAdd
 		is.True(balance >= 0)
 
-		//Testing if the book is already at the order. It is expected to be, now.
-		bookAtOrder, err := txRepo.UpdateBookAtOrder(ctx, updtReq)
+		//The book is expected to be at the order, now. Some of its fields will be overwritten:
+		bkItem := book.OrderItem{
+			BookID:           BookID,
+			BookName:         "New Book to test",
+			BookUnits:        5, //In the last subtest we already added 2 book units to this order, so this update must result 5.
+			BookPriceAtOrder: bk.Price,
+			//Created_at and Updated_at fields will be set properly at database layer
+		}
+
+		bookAtOrder, err := txRepo.UpsertOrderItem(ctx, OrderID, bkItem)
 		is.NoErr(err)
-		is.Equal(bookAtOrder.BookID, updtReq.BookID)
+		is.Equal(bookAtOrder.BookID, BookID)
 		is.Equal(bookAtOrder.BookUnits, 5)                                                        //In the last subtest we already added 2 book units to this order, so this update must result 5.
 		is.True(bookAtOrder.UpdatedAt.Compare(bookAtOrder.CreatedAt.Round(time.Millisecond)) > 0) //Assuring it was UPDATED at order
 
@@ -671,14 +676,14 @@ func TestUpdateOrderTx(t *testing.T) {
 		is.NoErr(err)
 
 		//testing if the book was correctly updated at book_orders table:
-		fetchedOrder, err := store.ListOrderItems(ctx, updtReq.OrderID)
+		fetchedOrder, err := store.ListOrderItems(ctx, OrderID)
 		is.NoErr(err)
 		is.Equal(bookAtOrder, fetchedOrder.Items[0])
 		is.True(fetchedOrder.UpdatedAt.Compare(fetchedOrder.CreatedAt.Round(time.Millisecond)) > 0)
 		is.True(fetchedOrder.Items[0].UpdatedAt.Compare(fetchedOrder.Items[0].CreatedAt.Round(time.Millisecond)) > 0)
 
 		//testing if the book was updated at bookstable:
-		fetchedBook, err := store.GetBookByID(ctx, updtReq.BookID)
+		fetchedBook, err := store.GetBookByID(ctx, BookID)
 		is.NoErr(err)
 		is.True(*fetchedBook.Inventory == 5) //8 - 3 = 5
 		is.True(fetchedBook.UpdatedAt.Compare(fetchedBook.CreatedAt.Round(time.Millisecond)) > 0)
@@ -688,11 +693,10 @@ func TestUpdateOrderTx(t *testing.T) {
 	t.Run("update an item at the order subtracting all book units, restoring them to inventory, without errors", func(t *testing.T) {
 		is := is.New(t)
 
-		updtReq := book.UpdateOrderRequest{
-			OrderID:        o.OrderID,
-			BookID:         testBookslist[0].ID,
-			BookUnitsToAdd: -5, //In the last subtests we already added 2 + 3 book units to this order, so this update must result 0.
-		}
+		//Setting up variables to this subtest:
+		OrderID := o.OrderID
+		BookID := testBookslist[0].ID
+		BookUnitsToAdd := -5 //In the last subtests we already added 2 + 3 book units to this order, so this update must result 0.
 
 		txRepo, tx, err := store.BeginTx(ctx, nil) //creates a new 'Store' with same sql.db, but with a sql.tx as the 'Executor'
 		is.NoErr(err)
@@ -702,24 +706,24 @@ func TestUpdateOrderTx(t *testing.T) {
 			is.True(errors.Is(rollbackErr, sql.ErrTxDone))
 		}()
 
-		err = txRepo.UpdateOrderRow(ctx, updtReq.OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
+		err = txRepo.UpdateOrderRow(ctx, OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
 		is.NoErr(err)
 
 		//Testing if there are sufficient inventory of the book asked, and if is not archived:
-		bk, err := txRepo.GetBookByID(ctx, updtReq.BookID)
+		bk, err := txRepo.GetBookByID(ctx, BookID)
 		is.NoErr(err)
 		is.True(!bk.Archived)
-		balance := *bk.Inventory - updtReq.BookUnitsToAdd
+		balance := *bk.Inventory - BookUnitsToAdd
 		is.True(balance >= 0)
 
 		//Testing if the book is already at the order. It is expected to be, now.
-		bookAtOrder, err := txRepo.UpdateBookAtOrder(ctx, updtReq)
+		bookAtOrder, err := txRepo.GetOrderItem(ctx, OrderID, BookID)
 		is.NoErr(err)
-		is.Equal(bookAtOrder.BookID, updtReq.BookID)
-		is.Equal(bookAtOrder.BookUnits, 0) //In the last subtests we already added 2 + 3 book units to this order, so this update must result 0.
+		is.Equal(bookAtOrder.BookID, BookID)
+		is.Equal(bookAtOrder.BookUnits, 5) //In the last subtests we already added 2 + 3 book units to this order, so now it must be 5. After update it will result 0.
 
 		//As book_units becomes zero, the row must be excluded from book_orders table. Even so, it must be updated at bookstable.
-		err = txRepo.DeleteBookAtOrder(ctx, updtReq)
+		err = txRepo.DeleteOrderItem(ctx, OrderID, BookID)
 		is.NoErr(err)
 
 		//Updating book inventory acordingly at bookstable:
@@ -739,7 +743,7 @@ func TestUpdateOrderTx(t *testing.T) {
 		is.True(len(fetchedOrder.Items) == 0) //The list must be empty
 
 		//testing if the book was updated at bookstable:
-		fetchedBook, err := store.GetBookByID(ctx, updtReq.BookID)
+		fetchedBook, err := store.GetBookByID(ctx, BookID)
 		is.NoErr(err)
 		is.True(*fetchedBook.Inventory == 10) //5 - (-5) = 10
 

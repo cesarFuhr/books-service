@@ -42,21 +42,6 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 	return m.recorder
 }
 
-// AddItemToOrder mocks base method.
-func (m *MockRepository) AddItemToOrder(arg0 context.Context, arg1 book.OrderItem, arg2 uuid.UUID) (book.OrderItem, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddItemToOrder", arg0, arg1, arg2)
-	ret0, _ := ret[0].(book.OrderItem)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AddItemToOrder indicates an expected call of AddItemToOrder.
-func (mr *MockRepositoryMockRecorder) AddItemToOrder(arg0, arg1, arg2 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddItemToOrder", reflect.TypeOf((*MockRepository)(nil).AddItemToOrder), arg0, arg1, arg2)
-}
-
 // BeginTx mocks base method.
 func (m *MockRepository) BeginTx(arg0 context.Context, arg1 *sql.TxOptions) (book.Repository, driver.Tx, error) {
 	m.ctrl.T.Helper()
@@ -103,18 +88,18 @@ func (mr *MockRepositoryMockRecorder) CreateOrder(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrder", reflect.TypeOf((*MockRepository)(nil).CreateOrder), arg0, arg1)
 }
 
-// DeleteBookAtOrder mocks base method.
-func (m *MockRepository) DeleteBookAtOrder(arg0 context.Context, arg1 book.UpdateOrderRequest) error {
+// DeleteOrderItem mocks base method.
+func (m *MockRepository) DeleteOrderItem(arg0 context.Context, arg1, arg2 uuid.UUID) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteBookAtOrder", arg0, arg1)
+	ret := m.ctrl.Call(m, "DeleteOrderItem", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeleteBookAtOrder indicates an expected call of DeleteBookAtOrder.
-func (mr *MockRepositoryMockRecorder) DeleteBookAtOrder(arg0, arg1 any) *gomock.Call {
+// DeleteOrderItem indicates an expected call of DeleteOrderItem.
+func (mr *MockRepositoryMockRecorder) DeleteOrderItem(arg0, arg1, arg2 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBookAtOrder", reflect.TypeOf((*MockRepository)(nil).DeleteBookAtOrder), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOrderItem", reflect.TypeOf((*MockRepository)(nil).DeleteOrderItem), arg0, arg1, arg2)
 }
 
 // GetBookByID mocks base method.
@@ -130,6 +115,21 @@ func (m *MockRepository) GetBookByID(arg0 context.Context, arg1 uuid.UUID) (book
 func (mr *MockRepositoryMockRecorder) GetBookByID(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBookByID", reflect.TypeOf((*MockRepository)(nil).GetBookByID), arg0, arg1)
+}
+
+// GetOrderItem mocks base method.
+func (m *MockRepository) GetOrderItem(arg0 context.Context, arg1, arg2 uuid.UUID) (book.OrderItem, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrderItem", arg0, arg1, arg2)
+	ret0, _ := ret[0].(book.OrderItem)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrderItem indicates an expected call of GetOrderItem.
+func (mr *MockRepositoryMockRecorder) GetOrderItem(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrderItem", reflect.TypeOf((*MockRepository)(nil).GetOrderItem), arg0, arg1, arg2)
 }
 
 // ListBooks mocks base method.
@@ -207,21 +207,6 @@ func (mr *MockRepositoryMockRecorder) UpdateBook(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBook", reflect.TypeOf((*MockRepository)(nil).UpdateBook), arg0, arg1)
 }
 
-// UpdateBookAtOrder mocks base method.
-func (m *MockRepository) UpdateBookAtOrder(arg0 context.Context, arg1 book.UpdateOrderRequest) (book.OrderItem, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateBookAtOrder", arg0, arg1)
-	ret0, _ := ret[0].(book.OrderItem)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// UpdateBookAtOrder indicates an expected call of UpdateBookAtOrder.
-func (mr *MockRepositoryMockRecorder) UpdateBookAtOrder(arg0, arg1 any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateBookAtOrder", reflect.TypeOf((*MockRepository)(nil).UpdateBookAtOrder), arg0, arg1)
-}
-
 // UpdateOrderRow mocks base method.
 func (m *MockRepository) UpdateOrderRow(arg0 context.Context, arg1 uuid.UUID) error {
 	m.ctrl.T.Helper()
@@ -234,6 +219,21 @@ func (m *MockRepository) UpdateOrderRow(arg0 context.Context, arg1 uuid.UUID) er
 func (mr *MockRepositoryMockRecorder) UpdateOrderRow(arg0, arg1 any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateOrderRow", reflect.TypeOf((*MockRepository)(nil).UpdateOrderRow), arg0, arg1)
+}
+
+// UpsertOrderItem mocks base method.
+func (m *MockRepository) UpsertOrderItem(arg0 context.Context, arg1 uuid.UUID, arg2 book.OrderItem) (book.OrderItem, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertOrderItem", arg0, arg1, arg2)
+	ret0, _ := ret[0].(book.OrderItem)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertOrderItem indicates an expected call of UpsertOrderItem.
+func (mr *MockRepositoryMockRecorder) UpsertOrderItem(arg0, arg1, arg2 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertOrderItem", reflect.TypeOf((*MockRepository)(nil).UpsertOrderItem), arg0, arg1, arg2)
 }
 
 // MockNotifier is a mock of Notifier interface.

@@ -139,31 +139,39 @@ func TestUpdateOrderTX(t *testing.T) {
 			BookUnitsToAdd: 5,
 		}
 		createdNow := time.Now().UTC().Round(time.Millisecond)
-		newItemAtOrder := book.OrderItem{
+		newOrderItem := book.OrderItem{
 			BookID:           bkToAdd.ID,
 			BookUnits:        updtReq.BookUnitsToAdd,
 			BookPriceAtOrder: bkToAdd.Price,
-			CreatedAt:        createdNow,
-			UpdatedAt:        createdNow,
 		}
 
 		mockRepo.EXPECT().BeginTx(gomock.Any(), nil).Return(mockTxRepo, mockTx, nil)
-		mockTxRepo.EXPECT().UpdateOrderRow(gomock.Any(), updtReq.OrderID).Return(nil)
+		mockTxRepo.EXPECT().UpdateOrderRow(gomock.Any(), updtReq.OrderID).DoAndReturn(func(context.Context, uuid.UUID) error {
+			orderToUpdt.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
+			return nil
+		})
 		mockTxRepo.EXPECT().GetBookByID(gomock.Any(), updtReq.BookID).Return(bkToAdd, nil)
-		mockTxRepo.EXPECT().UpdateBookAtOrder(gomock.Any(), updtReq).Return(book.OrderItem{}, book.ErrResponseBookNotAtOrder)
-		mockTxRepo.EXPECT().AddItemToOrder(gomock.Any(), gomock.Any(), updtReq.OrderID).DoAndReturn(func(ctx context.Context, newItemAtOrder book.OrderItem, orderID uuid.UUID) (book.OrderItem, error) {
-			is.Equal(newItemAtOrder.BookID, bkToAdd.ID)
-			is.Equal(newItemAtOrder.BookUnits, updtReq.BookUnitsToAdd)
-			is.Equal(newItemAtOrder.BookPriceAtOrder, bkToAdd.Price)
-
-			return newItemAtOrder, nil
+		mockTxRepo.EXPECT().GetOrderItem(gomock.Any(), updtReq.OrderID, updtReq.BookID).Return(book.OrderItem{}, book.ErrResponseBookNotAtOrder)
+		mockTxRepo.EXPECT().UpsertOrderItem(gomock.Any(), updtReq.OrderID, newOrderItem).DoAndReturn(func(context.Context, uuid.UUID, book.OrderItem) (book.OrderItem, error) {
+			newOrderItem = book.OrderItem{
+				BookID:           bkToAdd.ID,
+				BookUnits:        updtReq.BookUnitsToAdd,
+				BookPriceAtOrder: bkToAdd.Price,
+				CreatedAt:        createdNow,
+				UpdatedAt:        createdNow,
+			}
+			return newOrderItem, nil
 		})
 
-		bkToAdd.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
-		mockTxRepo.EXPECT().UpdateBook(gomock.Any(), bkToAdd).Return(bkToAdd, nil)
+		mockTxRepo.EXPECT().UpdateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, bookEntry book.Book) (book.Book, error) {
+			is.Equal(bookEntry.ID, bkToAdd.ID)
+			is.Equal(bookEntry.Price, bkToAdd.Price)
+			is.Equal(bookEntry.Inventory, bkToAdd.Inventory)
+			bkToAdd.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
+			return bkToAdd, nil
+		})
 		mockTxRepo.EXPECT().ListOrderItems(gomock.Any(), updtReq.OrderID).DoAndReturn(func(ctx context.Context, order_id uuid.UUID) (book.Order, error) {
-			orderToUpdt.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
-			orderToUpdt.Items = append(orderToUpdt.Items, newItemAtOrder)
+			orderToUpdt.Items = append(orderToUpdt.Items, newOrderItem)
 			orderToUpdt.TotalPrice = float32(updtReq.BookUnitsToAdd) * *bkToAdd.Price
 			return orderToUpdt, nil
 		})
@@ -191,26 +199,38 @@ func TestUpdateOrderTX(t *testing.T) {
 		}
 
 		mockRepo.EXPECT().BeginTx(gomock.Any(), nil).Return(mockTxRepo, mockTx, nil)
-		mockTxRepo.EXPECT().UpdateOrderRow(gomock.Any(), updtReq.OrderID).Return(nil)
+		mockTxRepo.EXPECT().UpdateOrderRow(gomock.Any(), updtReq.OrderID).DoAndReturn(func(context.Context, uuid.UUID) error {
+			orderToUpdt.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
+			return nil
+		})
 		mockTxRepo.EXPECT().GetBookByID(gomock.Any(), updtReq.BookID).Return(bkToAdd, nil)
+		mockTxRepo.EXPECT().GetOrderItem(gomock.Any(), updtReq.OrderID, updtReq.BookID).Return(orderToUpdt.Items[0], nil)
 
-		updatedItemAtOrder := book.OrderItem{
-			BookID:           bkToAdd.ID,
-			BookUnits:        orderToUpdt.Items[0].BookUnits + updtReq.BookUnitsToAdd,
+		orderItemToUpdate := book.OrderItem{
+			BookID:           orderToUpdt.Items[0].BookID,
+			BookUnits:        orderToUpdt.Items[0].BookUnits + updtReq.BookUnitsToAdd, //Must result 10
 			BookPriceAtOrder: orderToUpdt.Items[0].BookPriceAtOrder,
-			CreatedAt:        orderToUpdt.Items[0].CreatedAt,
 		}
-		mockTxRepo.EXPECT().UpdateBookAtOrder(gomock.Any(), updtReq).DoAndReturn(func(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
-			updatedItemAtOrder.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
-			return updatedItemAtOrder, nil
+
+		mockTxRepo.EXPECT().UpsertOrderItem(gomock.Any(), updtReq.OrderID, gomock.Any()).DoAndReturn(func(ctx context.Context, id uuid.UUID, oItem book.OrderItem) (book.OrderItem, error) {
+			is.Equal(orderItemToUpdate.BookID, orderToUpdt.Items[0].BookID)
+			is.Equal(orderItemToUpdate.BookUnits, orderToUpdt.Items[0].BookUnits+updtReq.BookUnitsToAdd)
+			is.Equal(orderItemToUpdate.BookPriceAtOrder, orderToUpdt.Items[0].BookPriceAtOrder)
+
+			orderToUpdt.Items[0].BookUnits = orderItemToUpdate.BookUnits
+			orderToUpdt.Items[0].UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
+			return orderToUpdt.Items[0], nil
 		})
 
-		bkToAdd.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
-		mockTxRepo.EXPECT().UpdateBook(gomock.Any(), bkToAdd).Return(bkToAdd, nil)
+		mockTxRepo.EXPECT().UpdateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, bookEntry book.Book) (book.Book, error) {
+			is.Equal(bookEntry.ID, bkToAdd.ID)
+			is.Equal(bookEntry.Price, bkToAdd.Price)
+			is.Equal(bookEntry.Inventory, bkToAdd.Inventory)
+			bkToAdd.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
+			return bkToAdd, nil
+		})
 		mockTxRepo.EXPECT().ListOrderItems(gomock.Any(), updtReq.OrderID).DoAndReturn(func(ctx context.Context, order_id uuid.UUID) (book.Order, error) {
-			orderToUpdt.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
-			orderToUpdt.Items[0] = updatedItemAtOrder
-			orderToUpdt.TotalPrice = float32(updatedItemAtOrder.BookUnits) * *updatedItemAtOrder.BookPriceAtOrder
+			orderToUpdt.TotalPrice = float32(orderToUpdt.Items[0].BookUnits) * *orderToUpdt.Items[0].BookPriceAtOrder
 			return orderToUpdt, nil
 		})
 
@@ -239,28 +259,24 @@ func TestUpdateOrderTX(t *testing.T) {
 		}
 
 		mockRepo.EXPECT().BeginTx(gomock.Any(), nil).Return(mockTxRepo, mockTx, nil)
-		mockTxRepo.EXPECT().UpdateOrderRow(gomock.Any(), updtReq.OrderID).Return(nil)
-		mockTxRepo.EXPECT().GetBookByID(gomock.Any(), updtReq.BookID).Return(bkToAdd, nil)
-
-		updatedItemAtOrder := book.OrderItem{
-			BookID:           bkToAdd.ID,
-			BookUnits:        orderToUpdt.Items[0].BookUnits + updtReq.BookUnitsToAdd,
-			BookPriceAtOrder: orderToUpdt.Items[0].BookPriceAtOrder,
-			CreatedAt:        orderToUpdt.Items[0].CreatedAt,
-		}
-		mockTxRepo.EXPECT().UpdateBookAtOrder(gomock.Any(), updtReq).DoAndReturn(func(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
-			updatedItemAtOrder.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
-			return updatedItemAtOrder, nil
-		})
-
-		mockTxRepo.EXPECT().DeleteBookAtOrder(gomock.Any(), updtReq).Return(nil)
-
-		bkToAdd.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
-		mockTxRepo.EXPECT().UpdateBook(gomock.Any(), bkToAdd).Return(bkToAdd, nil)
-		mockTxRepo.EXPECT().ListOrderItems(gomock.Any(), updtReq.OrderID).DoAndReturn(func(ctx context.Context, order_id uuid.UUID) (book.Order, error) {
+		mockTxRepo.EXPECT().UpdateOrderRow(gomock.Any(), updtReq.OrderID).DoAndReturn(func(context.Context, uuid.UUID) error {
 			orderToUpdt.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
+			return nil
+		})
+		mockTxRepo.EXPECT().GetBookByID(gomock.Any(), updtReq.BookID).Return(bkToAdd, nil)
+		mockTxRepo.EXPECT().GetOrderItem(gomock.Any(), updtReq.OrderID, updtReq.BookID).Return(orderToUpdt.Items[0], nil)
+		mockTxRepo.EXPECT().DeleteOrderItem(gomock.Any(), updtReq.OrderID, updtReq.BookID).Return(nil)
+
+		mockTxRepo.EXPECT().UpdateBook(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, bookEntry book.Book) (book.Book, error) {
+			is.Equal(bookEntry.ID, bkToAdd.ID)
+			is.Equal(bookEntry.Price, bkToAdd.Price)
+			is.Equal(bookEntry.Inventory, bkToAdd.Inventory)
+			bkToAdd.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
+			return bkToAdd, nil
+		})
+		mockTxRepo.EXPECT().ListOrderItems(gomock.Any(), updtReq.OrderID).DoAndReturn(func(ctx context.Context, order_id uuid.UUID) (book.Order, error) {
 			orderToUpdt.Items = []book.OrderItem{}
-			orderToUpdt.TotalPrice = float32(updatedItemAtOrder.BookUnits) * *updatedItemAtOrder.BookPriceAtOrder
+			orderToUpdt.TotalPrice = float32(0)
 			return orderToUpdt, nil
 		})
 

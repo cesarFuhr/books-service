@@ -37,6 +37,7 @@ func (s *Service) CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, er
 
 type OrderItem struct {
 	BookID           uuid.UUID
+	BookName         string
 	BookUnits        int
 	BookPriceAtOrder *float32
 	CreatedAt        time.Time
@@ -123,62 +124,65 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 		return Order{}, ErrResponseInsufficientInventory
 	}
 
-	//Testing if the book is already at the order and, if it is, updating it:
-	bookAtOrder, err := txRepo.UpdateBookAtOrder(ctx, updtReq)
+	//Testing if the book is already at the order and, if it is, getting it:
+	bookAtOrder, err := txRepo.GetOrderItem(ctx, updtReq.OrderID, updtReq.BookID)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-		} else {
-			if errors.Is(err, ErrResponseBookNotAtOrder) {
-				if updtReq.BookUnitsToAdd > 0 { //Considering that the book is not at the order yet, this call to UpdateOrderTX only makes sense if BookUnitsToAdd is positive.
-					//Adding a new book to the order:
-					createdNow := time.Now().UTC().Round(time.Millisecond)
-					newItemAtOrder := OrderItem{
-						BookID:           updtReq.BookID,
-						BookUnits:        updtReq.BookUnitsToAdd,
-						BookPriceAtOrder: bk.Price,
-						CreatedAt:        createdNow,
-						UpdatedAt:        createdNow,
-					}
-
-					bookAtOrder, err = txRepo.AddItemToOrder(ctx, newItemAtOrder, updtReq.OrderID)
-					if err != nil {
-						if errors.Is(err, context.DeadlineExceeded) {
-							return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-						}
-						errRepo := ErrResponse{
-							Code:    ErrResponseFromRespository.Code,
-							Message: ErrResponseFromRespository.Message + err.Error(),
-						}
-						return Order{}, errRepo
-					}
-				} else {
-					return Order{}, ErrResponseUpdateRequestNotPositive
-				}
-			} else {
-				errRepo := ErrResponse{
-					Code:    ErrResponseFromRespository.Code,
-					Message: ErrResponseFromRespository.Message + err.Error(),
-				}
-				return Order{}, errRepo
+		if !errors.Is(err, ErrResponseBookNotAtOrder) {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
 			}
+			errRepo := ErrResponse{
+				Code:    ErrResponseFromRespository.Code,
+				Message: ErrResponseFromRespository.Message + err.Error(),
+			}
+			return Order{}, errRepo
+		}
+	}
+
+	//Calculating changes to order item:
+	updtBookUnits := bookAtOrder.BookUnits + updtReq.BookUnitsToAdd
+
+	if updtBookUnits > 0 { //This way means that the book is being added to the order or, after any changes, some units of it remain there.
+
+		//Adding or updating the book at the order:
+		bookAtOrder.BookID = updtReq.BookID
+		bookAtOrder.BookName = bk.Name
+		bookAtOrder.BookUnits = updtBookUnits
+		if bookAtOrder.BookPriceAtOrder == nil { //If the book is already at the order, this price must be maintenned.
+			bookAtOrder.BookPriceAtOrder = bk.Price
+		}
+		//Created_at and Updated_at fields will be set properly at database layer
+
+		bookAtOrder, err = txRepo.UpsertOrderItem(ctx, updtReq.OrderID, bookAtOrder)
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
+			}
+			errRepo := ErrResponse{
+				Code:    ErrResponseFromRespository.Code,
+				Message: ErrResponseFromRespository.Message + err.Error(),
+			}
+			return Order{}, errRepo
 		}
 	} else { //Case the book is already at the order, and book_units becomes zero from update, the book is excluded from the order. Even so, it must be updated at bookstable.
-		if bookAtOrder.BookUnits <= 0 {
 
-			balance = balance + bookAtOrder.BookUnits //Ajusting the balance in case book_units becomes negative
+		if errors.Is(err, ErrResponseBookNotAtOrder) { //But, if the book is not at order, a request attempting to decrease its units value can mean an error from client, so an error is returned.
+			return Order{}, ErrResponseBookNotAtOrder
+		}
 
-			err = txRepo.DeleteBookAtOrder(ctx, updtReq)
-			if err != nil {
-				if errors.Is(err, context.DeadlineExceeded) {
-					return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-				}
-				errRepo := ErrResponse{
-					Code:    ErrResponseFromRespository.Code,
-					Message: ErrResponseFromRespository.Message + err.Error(),
-				}
-				return Order{}, errRepo
+		balance = balance + updtBookUnits //Ajusting the balance in case book_units becomes negative
+
+		err = txRepo.DeleteOrderItem(ctx, updtReq.OrderID, updtReq.BookID)
+
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
 			}
+			errRepo := ErrResponse{
+				Code:    ErrResponseFromRespository.Code,
+				Message: ErrResponseFromRespository.Message + err.Error(),
+			}
+			return Order{}, errRepo
 		}
 	}
 

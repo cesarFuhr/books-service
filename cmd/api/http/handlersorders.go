@@ -153,6 +153,7 @@ func orderToResponse(o book.Order) OrderResponse {
 
 type OrderItemResponse struct {
 	BookID           uuid.UUID `json:"book_id"`
+	BookName         string    `json:"book_name"`
 	BookUnits        int       `json:"book_units"`
 	BookPriceAtOrder *float32  `json:"book_price"`
 }
@@ -161,6 +162,7 @@ type OrderItemResponse struct {
 func orderItemToResponse(i book.OrderItem) OrderItemResponse {
 	return OrderItemResponse{
 		BookID:           i.BookID,
+		BookName:         i.BookName,
 		BookUnits:        i.BookUnits,
 		BookPriceAtOrder: i.BookPriceAtOrder,
 	}

@@ -34,10 +34,10 @@ type Repository interface {
 	CreateOrder(ctx context.Context, newOrder Order) (Order, error)
 	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error)
 	BeginTx(ctx context.Context, opts *sql.TxOptions) (Repository, driver.Tx, error)
+	GetOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) (OrderItem, error)
 	UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
-	UpdateBookAtOrder(ctx context.Context, updtReq UpdateOrderRequest) (OrderItem, error)
-	AddItemToOrder(ctx context.Context, newItemAtOrder OrderItem, orderID uuid.UUID) (OrderItem, error)
-	DeleteBookAtOrder(ctx context.Context, updtReq UpdateOrderRequest) error
+	UpsertOrderItem(ctx context.Context, orderID uuid.UUID, itemToUpdt OrderItem) (OrderItem, error)
+	DeleteOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) error
 }
 
 type Notifier interface {

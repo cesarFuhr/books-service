@@ -300,21 +300,6 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 	return orderToReturn, nil
 }
 
-func (store *Store) AddItemToOrder(ctx context.Context, newItemAtOrder book.OrderItem, orderID uuid.UUID) (book.OrderItem, error) {
-	sqlStatement := `
-	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6)
-	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at`
-	createdRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, newItemAtOrder.BookID, newItemAtOrder.BookUnits, *newItemAtOrder.BookPriceAtOrder, newItemAtOrder.CreatedAt, newItemAtOrder.UpdatedAt)
-	var itemToReturn book.OrderItem
-	err := createdRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
-	if err != nil {
-		return book.OrderItem{}, fmt.Errorf("storing new item at order on db: %w", err)
-	}
-
-	return itemToReturn, nil
-}
-
 /* Updates a row in orders table and checks if the order is accepting items. */
 func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error {
 	sqlStatement := `
@@ -340,31 +325,50 @@ func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
 	return nil
 }
 
-/*Tests if the book is already at the order and, if it is, updates it */
-func (store *Store) UpdateBookAtOrder(ctx context.Context, updtReq book.UpdateOrderRequest) (book.OrderItem, error) {
-	sqlStatement := `UPDATE books_orders
-	SET book_units = book_units + $3, updated_at = $4
-	WHERE order_id=$1 AND book_id=$2
-	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at;`
-	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID, updtReq.BookUnitsToAdd, time.Now().UTC().Round(time.Millisecond))
+/*Gets a book from the order searching by ID */
+func (store *Store) GetOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) (book.OrderItem, error) {
+	sqlStatement := `SELECT book_id, book_units, book_price_at_order, created_at, updated_at
+	FROM books_orders 
+	WHERE order_id=$1 AND book_id=$2;`
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, bookID)
 	var itemToReturn book.OrderItem
 	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", book.ErrResponseBookNotAtOrder)
+			return book.OrderItem{}, fmt.Errorf("getting order item from db: %w", book.ErrResponseBookNotAtOrder)
 		default:
-			return book.OrderItem{}, fmt.Errorf("updating order on db: %w", err)
+			return book.OrderItem{}, fmt.Errorf("getting order item from db: %w", err)
 		}
+	}
+
+	return itemToReturn, nil
+}
+
+/*Inserts a new book into the order and, if it is already there, updates it */
+func (store *Store) UpsertOrderItem(ctx context.Context, orderID uuid.UUID, itemToUpdt book.OrderItem) (book.OrderItem, error) {
+	sqlStatement := `
+	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $5)
+	ON CONFLICT ON CONSTRAINT books_orders_pkey DO UPDATE
+	SET book_units = $3, updated_at = $5
+	WHERE books_orders.order_id=$1 AND books_orders.book_id=$2
+	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at`
+
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, itemToUpdt.BookID, itemToUpdt.BookUnits, *itemToUpdt.BookPriceAtOrder, time.Now().UTC().Round(time.Millisecond))
+	var itemToReturn book.OrderItem
+	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	if err != nil {
+		return book.OrderItem{}, fmt.Errorf("upserting item at order on db: %w", err)
 	}
 	return itemToReturn, nil
 }
 
-func (store *Store) DeleteBookAtOrder(ctx context.Context, updtReq book.UpdateOrderRequest) error {
+func (store *Store) DeleteOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) error {
 	sqlStatement := `
 DELETE FROM books_orders
 WHERE order_id = $1 AND book_id = $2;`
-	_, err := store.exc.ExecContext(ctx, sqlStatement, updtReq.OrderID, updtReq.BookID)
+	_, err := store.exc.ExecContext(ctx, sqlStatement, orderID, bookID)
 	if err != nil {
 		return fmt.Errorf("updating order on db: %w", err)
 	}
