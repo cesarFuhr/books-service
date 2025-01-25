@@ -270,7 +270,7 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 		}
 	}
 
-	sqlStatement = `SELECT book_id, book_units, book_price_at_order, created_at, updated_at
+	sqlStatement = `SELECT book_id, book_units, book_price_at_order, created_at, updated_at, book_name
 	FROM books_orders 
 	WHERE order_id=$1
 	ORDER BY updated_at ASC;`
@@ -282,7 +282,7 @@ func (store *Store) ListOrderItems(ctx context.Context, order_id uuid.UUID) (boo
 	defer rows.Close()
 	var itemAtOrder book.OrderItem
 	for rows.Next() {
-		err = rows.Scan(&itemAtOrder.BookID, &itemAtOrder.BookUnits, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt)
+		err = rows.Scan(&itemAtOrder.BookID, &itemAtOrder.BookUnits, &itemAtOrder.BookPriceAtOrder, &itemAtOrder.CreatedAt, &itemAtOrder.UpdatedAt, &itemAtOrder.BookName)
 		if err != nil {
 			return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
 		}
@@ -327,12 +327,12 @@ func (store *Store) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
 
 /*Gets a book from the order searching by ID */
 func (store *Store) GetOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) (book.OrderItem, error) {
-	sqlStatement := `SELECT book_id, book_units, book_price_at_order, created_at, updated_at
+	sqlStatement := `SELECT book_id, book_units, book_price_at_order, created_at, updated_at, book_name
 	FROM books_orders 
 	WHERE order_id=$1 AND book_id=$2;`
 	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, bookID)
 	var itemToReturn book.OrderItem
-	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt, &itemToReturn.BookName)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
@@ -348,16 +348,16 @@ func (store *Store) GetOrderItem(ctx context.Context, orderID uuid.UUID, bookID 
 /*Inserts a new book into the order and, if it is already there, updates it */
 func (store *Store) UpsertOrderItem(ctx context.Context, orderID uuid.UUID, itemToUpdt book.OrderItem) (book.OrderItem, error) {
 	sqlStatement := `
-	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $5)
+	INSERT INTO books_orders (order_id, book_id, book_units, book_price_at_order, created_at, updated_at, book_name)
+	VALUES ($1, $2, $3, $4, $5, $5, $6)
 	ON CONFLICT ON CONSTRAINT books_orders_pkey DO UPDATE
 	SET book_units = $3, updated_at = $5
 	WHERE books_orders.order_id=$1 AND books_orders.book_id=$2
-	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at`
+	RETURNING book_id, book_units, book_price_at_order, created_at, updated_at, book_name`
 
-	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, itemToUpdt.BookID, itemToUpdt.BookUnits, *itemToUpdt.BookPriceAtOrder, time.Now().UTC().Round(time.Millisecond))
+	foundRow := store.exc.QueryRowContext(ctx, sqlStatement, orderID, itemToUpdt.BookID, itemToUpdt.BookUnits, *itemToUpdt.BookPriceAtOrder, time.Now().UTC().Round(time.Millisecond), itemToUpdt.BookName)
 	var itemToReturn book.OrderItem
-	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt)
+	err := foundRow.Scan(&itemToReturn.BookID, &itemToReturn.BookUnits, &itemToReturn.BookPriceAtOrder, &itemToReturn.CreatedAt, &itemToReturn.UpdatedAt, &itemToReturn.BookName)
 	if err != nil {
 		return book.OrderItem{}, fmt.Errorf("upserting item at order on db: %w", err)
 	}
