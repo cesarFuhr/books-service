@@ -1,6 +1,8 @@
 package book
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type ErrResponse struct {
 	Code    int    `json:"error_code"`
@@ -19,14 +21,12 @@ var ErrResponseQueryPriceInvalidFormat = ErrResponse{104, "query parameter 'pric
 var ErrResponseQuerySortByInvalid = ErrResponse{105, "query parameter 'sort_by' must be: name, price, inventory, created_at or updated_at. 'sort_direction' must be asc or desc."}
 var ErrResponseQueryPageInvalid = ErrResponse{106, "query parameter 'page' must be an int starting in 1. 'page_size' must be an int beetween 1 and 30."}
 var ErrResponseQueryPageOutOfRange = ErrResponse{107, "page out of range."}
-var ErrResponseFromRespository = ErrResponse{108, "error from repository call:"}
 var ErrResponseRequestTimeout = ErrResponse{109, "context deadline exceeded"}
 var ErrResponseOrderNotFound = ErrResponse{110, "order not found"}
 var ErrResponseOrderNotAcceptingItems = ErrResponse{111, "order not accepting items"}
 var ErrResponseBookIsArchived = ErrResponse{112, "book status is archived"}
 var ErrResponseInsufficientInventory = ErrResponse{113, "inventory is insufficient for this order"}
 var ErrResponseBookNotAtOrder = ErrResponse{114, "book is not at the order"}
-var ErrResponseUpdateRequestNotPositive = ErrResponse{115, "field book_units_to_add of an update request must be positive for a book that is not at the order"}
 var ErrResponseUpdateOrderEntryBlankFields = ErrResponse{116, "all the fields - order_id, book_id and book_units_to_add - must be filled correctly."}
 var ErrResponseNewOrderEntryBlankFields = ErrResponse{117, "field user_id must be filled correctly."}
 var ErrResponseListOrderItemsEntryBlankFields = ErrResponse{118, "field order_id must be filled correctly."}

@@ -72,15 +72,11 @@ func TestListOrderItems(t *testing.T) {
 
 		newOrderID := uuid.New()
 		dbErr := errors.New("fake error from database")
-		errRepo := book.ErrResponse{
-			Code:    book.ErrResponseFromRespository.Code,
-			Message: book.ErrResponseFromRespository.Message + dbErr.Error(),
-		}
 
 		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, dbErr)
 
 		order, err := mS.ListOrderItems(ctx, newOrderID)
-		is.Equal(err, errRepo)
+		is.True(errors.Is(err, dbErr))
 		is.Equal(order, book.Order{})
 		is.Equal(order.Items, nil)
 	})
@@ -97,7 +93,7 @@ func TestListOrderItems(t *testing.T) {
 		mockRepo.EXPECT().ListOrderItems(gomock.Any(), newOrderID).Return(book.Order{}, context.DeadlineExceeded)
 
 		order, err := mS.ListOrderItems(ctx, newOrderID)
-		is.Equal(err.Error(), "timeout on call to ListOrderItems: "+context.DeadlineExceeded.Error())
+		is.Equal(err.Error(), "error on call to ListOrderItems: "+context.DeadlineExceeded.Error())
 		is.Equal(order, book.Order{})
 		is.Equal(order.Items, nil)
 	})

@@ -48,15 +48,7 @@ func (s *Service) ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order
 
 	order, err := s.repo.ListOrderItems(ctx, order_id)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to ListOrderItems: %w", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
-
+		return Order{}, fmt.Errorf("error on call to ListOrderItems: %w", err)
 	}
 
 	return order, nil
@@ -72,14 +64,7 @@ type UpdateOrderRequest struct {
 func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest) (Order, error) {
 	txRepo, tx, err := s.repo.BeginTx(ctx, nil)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
+		return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 	}
 
 	defer func() {
@@ -88,33 +73,21 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 
 	err = txRepo.UpdateOrderRow(ctx, updtReq.OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-		} else if errors.Is(err, ErrResponseOrderNotFound) {
+		if errors.Is(err, ErrResponseOrderNotFound) {
 			return Order{}, ErrResponseOrderNotFound
 		} else if errors.Is(err, ErrResponseOrderNotAcceptingItems) {
 			return Order{}, ErrResponseOrderNotAcceptingItems
 		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
+		return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 	}
 
 	//Testing if there are sufficient inventory of the book asked, and if is not archived:
 	bk, err := txRepo.GetBookByID(ctx, updtReq.BookID)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-		} else if errors.Is(err, ErrResponseBookNotFound) {
+		if errors.Is(err, ErrResponseBookNotFound) {
 			return Order{}, ErrResponseBookNotFound
 		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
+		return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 	}
 	if bk.Archived {
 		return Order{}, ErrResponseBookIsArchived
@@ -128,14 +101,7 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 	bookAtOrder, err := txRepo.GetOrderItem(ctx, updtReq.OrderID, updtReq.BookID)
 	if err != nil {
 		if !errors.Is(err, ErrResponseBookNotAtOrder) {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-			}
-			errRepo := ErrResponse{
-				Code:    ErrResponseFromRespository.Code,
-				Message: ErrResponseFromRespository.Message + err.Error(),
-			}
-			return Order{}, errRepo
+			return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 		}
 	}
 
@@ -155,15 +121,9 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 
 		bookAtOrder, err = txRepo.UpsertOrderItem(ctx, updtReq.OrderID, bookAtOrder)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-			}
-			errRepo := ErrResponse{
-				Code:    ErrResponseFromRespository.Code,
-				Message: ErrResponseFromRespository.Message + err.Error(),
-			}
-			return Order{}, errRepo
+			return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 		}
+
 	} else { //Case the book is already at the order, and book_units becomes zero from update, the book is excluded from the order. Even so, it must be updated at bookstable.
 
 		if errors.Is(err, ErrResponseBookNotAtOrder) { //But, if the book is not at order, a request attempting to decrease its units value can mean an error from client, so an error is returned.
@@ -175,14 +135,7 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 		err = txRepo.DeleteOrderItem(ctx, updtReq.OrderID, updtReq.BookID)
 
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-			}
-			errRepo := ErrResponse{
-				Code:    ErrResponseFromRespository.Code,
-				Message: ErrResponseFromRespository.Message + err.Error(),
-			}
-			return Order{}, errRepo
+			return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 		}
 	}
 
@@ -191,37 +144,18 @@ func (s *Service) UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest)
 	bk.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
 	_, err = txRepo.UpdateBook(ctx, bk)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
+		return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 	}
 
 	updatedOrder, err := txRepo.ListOrderItems(ctx, updtReq.OrderID)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return Order{}, fmt.Errorf("timeout on call to UpdateOrderTx: %w ", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
+		return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return Order{}, errRepo
+		return Order{}, fmt.Errorf("error on call to UpdateOrderTx: %w ", err)
 	}
 
 	return updatedOrder, nil
-
 }

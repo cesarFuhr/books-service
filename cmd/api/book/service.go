@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -142,15 +141,9 @@ type ListBooksRequest struct {
 func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error) {
 	itemsTotal, err := s.repo.ListBooksTotals(ctx, params.Name, params.MinPrice, params.MaxPrice, params.Archived)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return PagedBooks{}, fmt.Errorf("timeout on call to ListBookTotals: %w ", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return PagedBooks{}, errRepo
+		return PagedBooks{}, fmt.Errorf("error on call to ListBookTotals: %w ", err)
 	}
+
 	if itemsTotal == 0 {
 		noBooks := PagedBooks{
 			PageCurrent: 0,
@@ -170,14 +163,7 @@ func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (Paged
 	//Ask filtered list to db:
 	returnedBooks, err := s.repo.ListBooks(ctx, params.Name, params.MinPrice, params.MaxPrice, params.SortBy, params.SortDirection, params.Archived, params.Page, params.PageSize)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return PagedBooks{}, fmt.Errorf("timeout on call to ListBooks: %w", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return PagedBooks{}, errRepo
+		return PagedBooks{}, fmt.Errorf("error on call to ListBooks: %w", err)
 	}
 
 	pageOfBooksList := PagedBooks{
