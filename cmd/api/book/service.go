@@ -2,7 +2,8 @@ package book
 
 import (
 	"context"
-	"errors"
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"log"
 	"math"
@@ -16,7 +17,10 @@ type ServiceAPI interface {
 	CreateBook(ctx context.Context, req CreateBookRequest) (Book, error)
 	GetBook(ctx context.Context, id uuid.UUID) (Book, error)
 	ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error)
+	CreateOrder(ctx context.Context, user_id uuid.UUID) (Order, error)
 	UpdateBook(ctx context.Context, req UpdateBookRequest) (Book, error)
+	UpdateOrderTx(ctx context.Context, updtReq UpdateOrderRequest) (Order, error)
+	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error)
 }
 
 type Repository interface {
@@ -26,6 +30,13 @@ type Repository interface {
 	ListBooks(ctx context.Context, name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]Book, error)
 	ListBooksTotals(ctx context.Context, name string, minPrice32, maxPrice32 float32, archived bool) (int, error)
 	UpdateBook(ctx context.Context, bookEntry Book) (Book, error)
+	CreateOrder(ctx context.Context, newOrder Order) (Order, error)
+	ListOrderItems(ctx context.Context, order_id uuid.UUID) (Order, error)
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (Repository, driver.Tx, error)
+	GetOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) (OrderItem, error)
+	UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error
+	UpsertOrderItem(ctx context.Context, orderID uuid.UUID, itemToUpdt OrderItem) (OrderItem, error)
+	DeleteOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) error
 }
 
 type Notifier interface {
@@ -130,15 +141,9 @@ type ListBooksRequest struct {
 func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (PagedBooks, error) {
 	itemsTotal, err := s.repo.ListBooksTotals(ctx, params.Name, params.MinPrice, params.MaxPrice, params.Archived)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return PagedBooks{}, fmt.Errorf("timeout on call to ListBookTotals: %w ", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return PagedBooks{}, errRepo
+		return PagedBooks{}, fmt.Errorf("error on call to ListBookTotals: %w ", err)
 	}
+
 	if itemsTotal == 0 {
 		noBooks := PagedBooks{
 			PageCurrent: 0,
@@ -158,14 +163,7 @@ func (s *Service) ListBooks(ctx context.Context, params ListBooksRequest) (Paged
 	//Ask filtered list to db:
 	returnedBooks, err := s.repo.ListBooks(ctx, params.Name, params.MinPrice, params.MaxPrice, params.SortBy, params.SortDirection, params.Archived, params.Page, params.PageSize)
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return PagedBooks{}, fmt.Errorf("timeout on call to ListBooks: %w", err)
-		}
-		errRepo := ErrResponse{
-			Code:    ErrResponseFromRespository.Code,
-			Message: ErrResponseFromRespository.Message + err.Error(),
-		}
-		return PagedBooks{}, errRepo
+		return PagedBooks{}, fmt.Errorf("error on call to ListBooks: %w", err)
 	}
 
 	pageOfBooksList := PagedBooks{

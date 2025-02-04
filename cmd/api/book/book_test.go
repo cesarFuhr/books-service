@@ -297,10 +297,6 @@ func TestListBooks(t *testing.T) {
 		//expectedPagesTotal := 3 //(itemsTotal / PageSize) up rounded to next integer
 		results := []book.Book{}
 		dbErr := errors.New("fake error from database")
-		errRepo := book.ErrResponse{
-			Code:    book.ErrResponseFromRespository.Code,
-			Message: book.ErrResponseFromRespository.Message + dbErr.Error(),
-		}
 		//-------------------------------
 
 		mockRepo.EXPECT().ListBooksTotals(gomock.Any(), reqBooks.Name, reqBooks.MinPrice, reqBooks.MaxPrice, reqBooks.Archived).Return(itemsTotal, nil)
@@ -309,7 +305,7 @@ func TestListBooks(t *testing.T) {
 
 		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.Equal(pageOfBooksList, book.PagedBooks{})
-		is.Equal(err, errRepo)
+		is.True(errors.Is(err, dbErr))
 	})
 
 	t.Run("expected context timeout error", func(t *testing.T) {
@@ -333,7 +329,7 @@ func TestListBooks(t *testing.T) {
 
 		pageOfBooksList, err := mS.ListBooks(ctx, reqBooks)
 		is.Equal(pageOfBooksList, book.PagedBooks{})
-		is.Equal(err.Error(), "timeout on call to ListBooks: "+context.DeadlineExceeded.Error())
+		is.Equal(err.Error(), "error on call to ListBooks: "+context.DeadlineExceeded.Error())
 	})
 }
 

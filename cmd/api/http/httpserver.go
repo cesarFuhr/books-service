@@ -14,6 +14,7 @@ func NewServer(config ServerConfig, h *BookHandler) *http.Server {
 	mux.HandleFunc("/ping", ping)
 	mux.HandleFunc("/books", h.books)
 	mux.HandleFunc("/books/", h.bookById)
+	mux.HandleFunc("/order", h.order)
 
 	server := http.Server{
 		Addr:    fmt.Sprintf(":%d", config.Port),

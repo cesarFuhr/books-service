@@ -101,14 +101,14 @@ func (h *BookHandler) createBook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		errR := book.ErrResponse{
-			Code:    book.ErrResponseBookEntryInvalidJSON.Code,
-			Message: book.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+			Code:    book.ErrResponseEntryInvalidJSON.Code,
+			Message: book.ErrResponseEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
-	err = FilledFields(bookEntry) //Verify if all entry fields are filled.
+	err = FilledBookFields(bookEntry) //Verify if all entry fields are filled.
 	if err != nil {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
@@ -137,14 +137,14 @@ func (h *BookHandler) updateBook(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 		errR := book.ErrResponse{
-			Code:    book.ErrResponseBookEntryInvalidJSON.Code,
-			Message: book.ErrResponseBookEntryInvalidJSON.Message + err.Error(),
+			Code:    book.ErrResponseEntryInvalidJSON.Code,
+			Message: book.ErrResponseEntryInvalidJSON.Message + err.Error(),
 		}
 		responseJSON(w, http.StatusBadRequest, errR)
 		return
 	}
 
-	err = FilledFields(bookEntry) //Verify if all entry fields are filled.
+	err = FilledBookFields(bookEntry) //Verify if all entry fields are filled.
 	if err != nil {
 		responseJSON(w, http.StatusBadRequest, err)
 		return
@@ -247,16 +247,16 @@ func (h *BookHandler) listBooks(w http.ResponseWriter, r *http.Request) {
 	responseJSON(w, http.StatusOK, pagedBooksToResponse(pagedBooks))
 }
 
-/* Verifies if all entry fields are filled and returns a warning message if so. */
-func FilledFields(bookEntry BookEntry) error {
+/* Verifies if all Book entry fields are filled and returns a warning message if so. */
+func FilledBookFields(bookEntry BookEntry) error {
 	if bookEntry.Name == "" {
-		return book.ErrResponseBookEntryBlankFileds
+		return book.ErrResponseBookEntryBlankFields
 	}
 	if bookEntry.Price == nil {
-		return book.ErrResponseBookEntryBlankFileds
+		return book.ErrResponseBookEntryBlankFields
 	}
 	if bookEntry.Inventory == nil {
-		return book.ErrResponseBookEntryBlankFileds
+		return book.ErrResponseBookEntryBlankFields
 	}
 
 	return nil
@@ -416,20 +416,34 @@ func extractPageParams(query url.Values) (page, pageSize int, valid bool) {
 }
 
 func handleError(err error, w http.ResponseWriter, r *http.Request) {
-	switch {
-	case errors.Is(err, book.ErrResponseQueryPageOutOfRange):
-		responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
-		return
-	case errors.Is(err, book.ErrResponseBookNotFound):
-		log.Println(err)
-		w.WriteHeader(http.StatusNotFound)
-		return
-	case errors.Is(err, context.DeadlineExceeded):
-		log.Println(err)
+	log.Println(err)
+	if errors.As(err, &book.ErrResponse{}) {
+		switch {
+		case errors.Is(err, book.ErrResponseQueryPageOutOfRange):
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
+			return
+		case errors.Is(err, book.ErrResponseBookNotFound):
+			responseJSON(w, http.StatusNotFound, book.ErrResponseBookNotFound)
+			return
+		case errors.Is(err, book.ErrResponseBookIsArchived):
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseBookIsArchived)
+			return
+		case errors.Is(err, book.ErrResponseInsufficientInventory):
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseInsufficientInventory)
+			return
+		case errors.Is(err, book.ErrResponseOrderNotFound):
+			responseJSON(w, http.StatusNotFound, book.ErrResponseOrderNotFound)
+			return
+		case errors.Is(err, book.ErrResponseOrderNotAcceptingItems):
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseOrderNotAcceptingItems)
+			return
+		case errors.Is(err, book.ErrResponseBookNotAtOrder):
+			responseJSON(w, http.StatusBadRequest, book.ErrResponseBookNotAtOrder)
+			return
+		}
+	} else if errors.Is(err, context.DeadlineExceeded) {
 		responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
 		return
-	default:
-		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
 	}
+	w.WriteHeader(http.StatusInternalServerError)
 }
