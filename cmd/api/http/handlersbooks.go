@@ -416,42 +416,34 @@ func extractPageParams(query url.Values) (page, pageSize int, valid bool) {
 }
 
 func handleError(err error, w http.ResponseWriter, r *http.Request) {
+	log.Println(err)
 	if errors.As(err, &book.ErrResponse{}) {
 		switch {
 		case errors.Is(err, book.ErrResponseQueryPageOutOfRange):
-			log.Println(err)
 			responseJSON(w, http.StatusBadRequest, book.ErrResponseQueryPageOutOfRange)
 			return
 		case errors.Is(err, book.ErrResponseBookNotFound):
-			log.Println(err)
 			responseJSON(w, http.StatusNotFound, book.ErrResponseBookNotFound)
 			return
 		case errors.Is(err, book.ErrResponseBookIsArchived):
-			log.Println(err)
 			responseJSON(w, http.StatusBadRequest, book.ErrResponseBookIsArchived)
 			return
 		case errors.Is(err, book.ErrResponseInsufficientInventory):
-			log.Println(err)
 			responseJSON(w, http.StatusBadRequest, book.ErrResponseInsufficientInventory)
 			return
 		case errors.Is(err, book.ErrResponseOrderNotFound):
-			log.Println(err)
 			responseJSON(w, http.StatusNotFound, book.ErrResponseOrderNotFound)
 			return
 		case errors.Is(err, book.ErrResponseOrderNotAcceptingItems):
-			log.Println(err)
 			responseJSON(w, http.StatusBadRequest, book.ErrResponseOrderNotAcceptingItems)
 			return
 		case errors.Is(err, book.ErrResponseBookNotAtOrder):
-			log.Println(err)
 			responseJSON(w, http.StatusBadRequest, book.ErrResponseBookNotAtOrder)
 			return
 		}
 	} else if errors.Is(err, context.DeadlineExceeded) {
-		log.Println(err)
 		responseJSON(w, http.StatusGatewayTimeout, book.ErrResponseRequestTimeout)
 		return
 	}
-	log.Println(err)
 	w.WriteHeader(http.StatusInternalServerError)
 }

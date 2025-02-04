@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -96,7 +97,7 @@ func (h *BookHandler) updateOrder(w http.ResponseWriter, r *http.Request) {
 
 	updatedOrder, err := h.bookService.UpdateOrderTx(r.Context(), reqOrder) //Update the stored order
 	if err != nil {
-		handleError(err, w, r)
+		handleError(fmt.Errorf("error on call to UpdateOrderTx: %w ", err), w, r)
 		return
 	}
 
