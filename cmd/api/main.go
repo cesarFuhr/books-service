@@ -14,11 +14,9 @@ import (
 	"time"
 
 	"github.com/books-service/cmd/api/book"
-	"github.com/books-service/cmd/api/database"
 	bookhttp "github.com/books-service/cmd/api/http"
+	"github.com/books-service/cmd/api/inmemory"
 	"github.com/books-service/cmd/api/notifications"
-
-	"github.com/golang-migrate/migrate/v4"
 )
 
 func main() {
@@ -30,11 +28,12 @@ func main() {
 }
 
 func run() error {
+	/* USING POSTGRES DATABASE:
 	//connect to db:
 	connStr := os.Getenv("DATABASE_URL")
-	dbObject, err := database.ConnectDb(connStr)
+	dbObject, errConn := database.ConnectDb(connStr)
 	if err != nil {
-		return fmt.Errorf("connecting with db: %w", err)
+		return fmt.Errorf("connecting with db: %w", errConn)
 	}
 
 	defer dbObject.Close()
@@ -45,6 +44,13 @@ func run() error {
 	err = database.MigrationUp(store, path)
 	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("migrating: %w", err)
+	}
+	*/
+
+	//USING IN MEMORY STORAGE:
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		return fmt.Errorf("initializing in-memory database: %w", err)
 	}
 
 	//get request timeout from environment:
