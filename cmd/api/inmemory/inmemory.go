@@ -16,7 +16,8 @@ import (
 )
 
 type InMemoryStore struct {
-	db *memdb.MemDB
+	db  *memdb.MemDB
+	exc *memdb.Txn
 }
 
 func NewInMemoryStore() (*InMemoryStore, error) {
@@ -43,6 +44,31 @@ func NewInMemoryStore() (*InMemoryStore, error) {
 					},
 				},
 			},
+			"books_orders": {
+				Name: "books_orders",
+				Indexes: map[string]*memdb.IndexSchema{
+					"id": { // Composite index for quick lookups
+						Name:   "id",
+						Unique: true,
+						Indexer: &memdb.CompoundIndex{
+							Indexes: []memdb.Indexer{
+								&memdb.StringFieldIndex{Field: "OrderID"},
+								&memdb.StringFieldIndex{Field: "BookID"},
+							},
+						},
+					},
+					"order_id": {
+						Name:    "order_id",
+						Unique:  false,
+						Indexer: &memdb.StringFieldIndex{Field: "OrderID"},
+					},
+					"book_id": {
+						Name:    "book_id",
+						Unique:  false,
+						Indexer: &memdb.StringFieldIndex{Field: "BookID"},
+					},
+				},
+			},
 		},
 	}
 
@@ -56,7 +82,7 @@ func NewInMemoryStore() (*InMemoryStore, error) {
 		return nil, fmt.Errorf("failed to initialize in-memory database: %w", err)
 	}
 
-	return &InMemoryStore{db: db}, nil
+	return &InMemoryStore{db: db, exc: nil}, nil
 }
 
 type AdaptedBook struct {
@@ -93,13 +119,84 @@ func adaptBookIdToUUID(adptBook AdaptedBook) book.Book {
 	}
 }
 
+type AdaptedOrder struct {
+	OrderID     string
+	PurchaserID string
+	OrderStatus string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	TotalPrice  float32
+	Items       []book.OrderItem
+}
+
+func adaptOrderIdToString(o book.Order) AdaptedOrder {
+	return AdaptedOrder{
+		OrderID:     o.OrderID.String(),
+		PurchaserID: o.PurchaserID.String(),
+		OrderStatus: o.OrderStatus,
+		CreatedAt:   o.CreatedAt,
+		UpdatedAt:   o.UpdatedAt,
+		TotalPrice:  o.TotalPrice,
+		Items:       o.Items,
+	}
+}
+
+func adaptOrderIdToUUID(adptOrder AdaptedOrder) book.Order {
+	return book.Order{
+		OrderID:     uuid.MustParse(adptOrder.OrderID),
+		PurchaserID: uuid.MustParse(adptOrder.PurchaserID),
+		OrderStatus: adptOrder.OrderStatus,
+		CreatedAt:   adptOrder.CreatedAt,
+		UpdatedAt:   adptOrder.UpdatedAt,
+		TotalPrice:  adptOrder.TotalPrice,
+		Items:       adptOrder.Items,
+	}
+}
+
+type AdaptedOrderItem struct {
+	OrderID          string
+	BookID           string
+	BookName         string
+	BookUnits        int
+	BookPriceAtOrder *float32
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+func adaptOrderItemIdToString(orderID uuid.UUID, o book.OrderItem) AdaptedOrderItem {
+	return AdaptedOrderItem{
+		OrderID:          orderID.String(),
+		BookID:           o.BookID.String(),
+		BookName:         o.BookName,
+		BookUnits:        o.BookUnits,
+		BookPriceAtOrder: o.BookPriceAtOrder,
+		CreatedAt:        o.CreatedAt,
+		UpdatedAt:        o.UpdatedAt,
+	}
+}
+
+func adaptOrderItemIdToUUID(o AdaptedOrderItem) book.OrderItem {
+	return book.OrderItem{
+		BookID:           uuid.MustParse(o.BookID),
+		BookName:         o.BookName,
+		BookUnits:        o.BookUnits,
+		BookPriceAtOrder: o.BookPriceAtOrder,
+		CreatedAt:        o.CreatedAt,
+		UpdatedAt:        o.UpdatedAt,
+	}
+}
+
 // -- Books --
 
 func (store *InMemoryStore) SetBookArchiveStatus(ctx context.Context, id uuid.UUID, archived bool) (book.Book, error) {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
+	}
 
-	raw, err := txn.First("book", "id", id.String())
+	raw, err := store.exc.First("book", "id", id.String())
 	if err != nil {
 		return book.Book{}, fmt.Errorf("archiving on db: %w", err)
 	}
@@ -111,32 +208,44 @@ func (store *InMemoryStore) SetBookArchiveStatus(ctx context.Context, id uuid.UU
 	updatedBook.Archived = archived
 	updatedBook.UpdatedAt = time.Now()
 
-	if err := txn.Insert("book", updatedBook); err != nil {
+	if err := store.exc.Insert("book", updatedBook); err != nil {
 		return book.Book{}, err
 	}
 
-	txn.Commit()
+	if !insideTx {
+		store.exc.Commit()
+	}
 	return adaptBookIdToUUID(updatedBook), nil
 }
 
 func (store *InMemoryStore) CreateBook(ctx context.Context, bookEntry book.Book) (book.Book, error) {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
+	}
 
-	err := txn.Insert("book", adaptBookIdToString(bookEntry))
+	err := store.exc.Insert("book", adaptBookIdToString(bookEntry))
 	if err != nil {
 		return book.Book{}, fmt.Errorf("storing book on db: %w", err)
 	}
 
-	txn.Commit()
+	if !insideTx {
+		store.exc.Commit()
+	}
 	return bookEntry, nil
 }
 
 func (store *InMemoryStore) GetBookByID(ctx context.Context, id uuid.UUID) (book.Book, error) {
-	txn := store.db.Txn(false)
-	defer txn.Abort()
+	//insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		//	insideTx = false
+		store.exc = store.db.Txn(false)
+		defer store.endTX()
+	}
 
-	raw, err := txn.First("book", "id", id.String())
+	raw, err := store.exc.First("book", "id", id.String())
 	if err != nil {
 		return book.Book{}, fmt.Errorf("searching by ID: %w", err)
 	}
@@ -148,10 +257,14 @@ func (store *InMemoryStore) GetBookByID(ctx context.Context, id uuid.UUID) (book
 }
 
 func (store *InMemoryStore) ListBooks(ctx context.Context, name string, minPrice32, maxPrice32 float32, sortBy, sortDirection string, archived bool, page, pageSize int) ([]book.Book, error) {
-	txn := store.db.Txn(false)
-	defer txn.Abort()
+	//insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		//	insideTx = false
+		store.exc = store.db.Txn(false)
+		defer store.endTX()
+	}
 
-	it, err := txn.Get("book", "id")
+	it, err := store.exc.Get("book", "id")
 	if err != nil {
 		return nil, fmt.Errorf("listing books from db: %w", err)
 	}
@@ -222,10 +335,14 @@ func sortBooks(sortBy, sortDirection string, books []book.Book) []book.Book {
 }
 
 func (store *InMemoryStore) ListBooksTotals(ctx context.Context, name string, minPrice32, maxPrice32 float32, archived bool) (int, error) {
-	txn := store.db.Txn(false)
-	defer txn.Abort()
+	//insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		//	insideTx = false
+		store.exc = store.db.Txn(false)
+		defer store.endTX()
+	}
 
-	it, err := txn.Get("book", "id")
+	it, err := store.exc.Get("book", "id")
 	if err != nil {
 		return 0, fmt.Errorf("counting books from db: %w", err)
 	}
@@ -249,10 +366,14 @@ func (store *InMemoryStore) ListBooksTotals(ctx context.Context, name string, mi
 }
 
 func (store *InMemoryStore) UpdateBook(ctx context.Context, bookEntry book.Book) (book.Book, error) {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
+	}
 
-	raw, err := txn.First("book", "id", bookEntry.ID.String())
+	raw, err := store.exc.First("book", "id", bookEntry.ID.String())
 	if err != nil {
 		return book.Book{}, fmt.Errorf("updating book on db: %w", err)
 	}
@@ -268,63 +389,98 @@ func (store *InMemoryStore) UpdateBook(ctx context.Context, bookEntry book.Book)
 	updatedBook.UpdatedAt = bookEntry.UpdatedAt
 	//Archived will not change
 
-	if err := txn.Insert("book", updatedBook); err != nil {
+	if err := store.exc.Insert("book", updatedBook); err != nil {
 		return book.Book{}, err
 	}
 
-	txn.Commit()
+	if !insideTx {
+		store.exc.Commit()
+	}
 	return bookEntry, nil
 }
 
 // -- Orders --
 
 func (store *InMemoryStore) CreateOrder(ctx context.Context, newOrder book.Order) (book.Order, error) {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
+	}
 
-	if err := txn.Insert("order", newOrder); err != nil {
+	if err := store.exc.Insert("order", adaptOrderIdToString(newOrder)); err != nil {
 		return book.Order{}, fmt.Errorf("storing order on db: %w", err)
 	}
 
-	txn.Commit()
+	if !insideTx {
+		store.exc.Commit()
+	}
 	return newOrder, nil
 }
 
 func (store *InMemoryStore) ListOrderItems(ctx context.Context, orderID uuid.UUID) (book.Order, error) {
-	txn := store.db.Txn(false)
-	defer txn.Abort()
+	//insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		//	insideTx = false
+		store.exc = store.db.Txn(false)
+		defer store.endTX()
+	}
 
-	raw, err := txn.First("order", "id", orderID)
+	raw, err := store.exc.First("order", "id", orderID.String())
 	if err != nil {
 		return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
 	}
 	if raw == nil {
 		return book.Order{}, fmt.Errorf("listing order items from db: %w", book.ErrResponseOrderNotFound)
 	}
+	orderToReturn := adaptOrderIdToUUID(raw.(AdaptedOrder))
 
-	return raw.(book.Order), nil
+	it, err := store.exc.Get("books_orders", "order_id", orderID.String())
+	if err != nil {
+		return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
+	}
+
+	var items []book.OrderItem
+	for obj := it.Next(); obj != nil; obj = it.Next() {
+		b := obj.(AdaptedOrderItem)
+		items = append(items, adaptOrderItemIdToUUID(b))
+		orderToReturn.TotalPrice = orderToReturn.TotalPrice + (*b.BookPriceAtOrder * float32(b.BookUnits))
+	}
+
+	orderToReturn.Items = items
+
+	return orderToReturn, nil
 }
 
 func (store *InMemoryStore) GetOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) (book.OrderItem, error) {
-	order, err := store.ListOrderItems(ctx, orderID)
+	//insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		//	insideTx = false
+		store.exc = store.db.Txn(false)
+		defer store.endTX()
+	}
+
+	raw, err := store.exc.First("books_orders", "id", orderID.String(), bookID.String())
 	if err != nil {
 		return book.OrderItem{}, fmt.Errorf("getting order item from db: %w", err)
 	}
-
-	for _, item := range order.Items {
-		if item.BookID == bookID {
-			return item, nil
-		}
+	if raw == nil {
+		return book.OrderItem{}, fmt.Errorf("getting order item from db: %w", book.ErrResponseBookNotAtOrder)
 	}
 
-	return book.OrderItem{}, fmt.Errorf("getting order item from db: %w", book.ErrResponseBookNotAtOrder)
+	return adaptOrderItemIdToUUID(raw.(AdaptedOrderItem)), nil
 }
 
 func (store *InMemoryStore) UpdateOrderRow(ctx context.Context, orderID uuid.UUID) error {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
+	}
 
-	raw, err := txn.First("order", "id", orderID)
+	raw, err := store.exc.First("order", "id", orderID.String())
 	if err != nil {
 		return fmt.Errorf("updating order on db: %w", err)
 	}
@@ -332,80 +488,69 @@ func (store *InMemoryStore) UpdateOrderRow(ctx context.Context, orderID uuid.UUI
 		return fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotFound)
 	}
 
-	order := raw.(book.Order)
+	order := raw.(AdaptedOrder)
 	if order.OrderStatus != "accepting_items" {
 		return fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotAcceptingItems)
 	}
 
 	order.UpdatedAt = time.Now()
-	if err := txn.Insert("order", order); err != nil {
+	if err := store.exc.Insert("order", order); err != nil {
 		return fmt.Errorf("updating order on db: %w", err)
 	}
 
-	txn.Commit()
+	if !insideTx {
+		store.exc.Commit()
+	}
 	return nil
 }
 
 func (store *InMemoryStore) UpsertOrderItem(ctx context.Context, orderID uuid.UUID, itemToUpdt book.OrderItem) (book.OrderItem, error) {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
+	}
 
-	raw, err := txn.First("order", "id", orderID)
+	raw, err := store.exc.First("books_orders", "id", orderID.String(), itemToUpdt.BookID.String())
 	if err != nil {
 		return book.OrderItem{}, fmt.Errorf("upserting item at order on db: %w", err)
 	}
+	orderItem := AdaptedOrderItem{}
 	if raw == nil {
-		return book.OrderItem{}, fmt.Errorf("upserting item at order on db: %w", book.ErrResponseOrderNotFound)
+		orderItem = adaptOrderItemIdToString(orderID, itemToUpdt)
+	} else {
+		orderItem = raw.(AdaptedOrderItem)
+		orderItem.BookUnits = itemToUpdt.BookUnits
+		orderItem.UpdatedAt = itemToUpdt.UpdatedAt
 	}
 
-	order := raw.(book.Order)
-	found := false
-	for i, item := range order.Items {
-		if item.BookID == itemToUpdt.BookID {
-			order.Items[i] = itemToUpdt
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		order.Items = append(order.Items, itemToUpdt)
-	}
-
-	if err := txn.Insert("order", order); err != nil {
+	if err := store.exc.Insert("books_orders", orderItem); err != nil {
 		return book.OrderItem{}, fmt.Errorf("upserting item at order on db: %w", err)
 	}
 
-	txn.Commit()
-	return itemToUpdt, nil
+	if !insideTx {
+		store.exc.Commit()
+	}
+	return adaptOrderItemIdToUUID(orderItem), nil
 }
 
 func (store *InMemoryStore) DeleteOrderItem(ctx context.Context, orderID uuid.UUID, bookID uuid.UUID) error {
-	txn := store.db.Txn(true)
-	defer txn.Abort()
-
-	raw, err := txn.First("order", "id", orderID)
-	if err != nil {
-		return fmt.Errorf("deleting item from order on db: %w", err)
-	}
-	if raw == nil {
-		return fmt.Errorf("deleting item from order on db: %w", book.ErrResponseOrderNotFound)
+	insideTx := true
+	if store.exc == nil { //It means this method is not being called inside a larger transction.
+		insideTx = false
+		store.exc = store.db.Txn(true)
+		defer store.endTX()
 	}
 
-	order := raw.(book.Order)
-	newItems := []book.OrderItem{}
-	for _, item := range order.Items {
-		if item.BookID != bookID {
-			newItems = append(newItems, item)
-		}
-	}
-	order.Items = newItems
-
-	if err := txn.Insert("order", order); err != nil {
+	count, err := store.exc.DeleteAll("books_orders", "id", orderID.String(), bookID.String())
+	if err != nil && count != 1 {
 		return fmt.Errorf("deleting item from order on db: %w", err)
 	}
 
-	txn.Commit()
+	if !insideTx {
+		store.exc.Commit()
+	}
 	return nil
 }
 
@@ -417,8 +562,12 @@ func (store *InMemoryStore) BeginTx(ctx context.Context, opts *sql.TxOptions) (b
 		return nil, nil, fmt.Errorf("failed to create transaction")
 	}
 
-	txStore := &InMemoryStore{db: store.db}
 	txWrapper := &TxWrapper{txn: txn}
+	txStore := &InMemoryStore{
+		db:  store.db,
+		exc: txWrapper.txn,
+	}
+
 	return txStore, txWrapper, nil
 }
 
@@ -433,5 +582,13 @@ func (tx *TxWrapper) Commit() error {
 
 func (tx *TxWrapper) Rollback() error {
 	tx.txn.Abort()
+	var nilTxn *memdb.Txn
+	tx.txn = nilTxn
 	return nil
+}
+
+func (store *InMemoryStore) endTX() {
+	store.exc.Abort()
+	var nilTxn *memdb.Txn
+	store.exc = nilTxn
 }
