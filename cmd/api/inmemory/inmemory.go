@@ -81,7 +81,6 @@ func NewInMemoryStore() (*InMemoryStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize in-memory database: %w", err)
 	}
-
 	return &InMemoryStore{db: db, exc: nil}, nil
 }
 
@@ -206,7 +205,6 @@ func (store *InMemoryStore) SetBookArchiveStatus(ctx context.Context, id uuid.UU
 
 	updatedBook := raw.(AdaptedBook)
 	updatedBook.Archived = archived
-	updatedBook.UpdatedAt = time.Now()
 
 	if err := store.exc.Insert("book", updatedBook); err != nil {
 		return book.Book{}, err
@@ -231,10 +229,19 @@ func (store *InMemoryStore) CreateBook(ctx context.Context, bookEntry book.Book)
 		return book.Book{}, fmt.Errorf("storing book on db: %w", err)
 	}
 
+	raw, err := store.exc.First("book", "id", bookEntry.ID.String())
+	if err != nil {
+		return book.Book{}, fmt.Errorf("storing book on db: %w", err)
+	}
+	if raw == nil {
+		return book.Book{}, fmt.Errorf("storing book on db: %w", book.ErrResponseBookNotFound)
+	}
+
 	if !insideTx {
 		store.exc.Commit()
 	}
-	return bookEntry, nil
+
+	return adaptBookIdToUUID(raw.(AdaptedBook)), nil
 }
 
 func (store *InMemoryStore) GetBookByID(ctx context.Context, id uuid.UUID) (book.Book, error) {
@@ -266,10 +273,10 @@ func (store *InMemoryStore) ListBooks(ctx context.Context, name string, minPrice
 
 	it, err := store.exc.Get("book", "id")
 	if err != nil {
-		return nil, fmt.Errorf("listing books from db: %w", err)
+		return []book.Book{}, fmt.Errorf("listing books from db: %w", err)
 	}
 
-	var books []book.Book
+	books := []book.Book{}
 	for obj := it.Next(); obj != nil; obj = it.Next() {
 		b := obj.(AdaptedBook)
 		if b.Archived != archived && b.Archived {
@@ -284,17 +291,21 @@ func (store *InMemoryStore) ListBooks(ctx context.Context, name string, minPrice
 		books = append(books, adaptBookIdToUUID(b))
 	}
 
-	booksSorted := sortBooks(sortBy, sortDirection, books)
+	if len(books) > 1 {
+		booksSorted := sortBooks(sortBy, sortDirection, books)
 
-	// Apply pagination
-	start := (page - 1) * pageSize
+		// Apply pagination
+		start := (page - 1) * pageSize
 
-	end := start + pageSize
-	if end > len(books) {
-		end = len(books)
+		end := start + pageSize
+		if end > len(books) {
+			end = len(books)
+		}
+
+		return booksSorted[start:end], nil
 	}
 
-	return booksSorted[start:end], nil
+	return books, nil
 }
 
 func sortBooks(sortBy, sortDirection string, books []book.Book) []book.Book {
@@ -347,7 +358,7 @@ func (store *InMemoryStore) ListBooksTotals(ctx context.Context, name string, mi
 		return 0, fmt.Errorf("counting books from db: %w", err)
 	}
 
-	var books []book.Book
+	books := []book.Book{}
 	for obj := it.Next(); obj != nil; obj = it.Next() {
 		b := obj.(AdaptedBook)
 		if b.Archived != archived && b.Archived {
@@ -441,12 +452,16 @@ func (store *InMemoryStore) ListOrderItems(ctx context.Context, orderID uuid.UUI
 		return book.Order{}, fmt.Errorf("listing order items from db: %w", err)
 	}
 
-	var items []book.OrderItem
+	items := []book.OrderItem{}
 	for obj := it.Next(); obj != nil; obj = it.Next() {
 		b := obj.(AdaptedOrderItem)
 		items = append(items, adaptOrderItemIdToUUID(b))
 		orderToReturn.TotalPrice = orderToReturn.TotalPrice + (*b.BookPriceAtOrder * float32(b.BookUnits))
 	}
+
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].UpdatedAt.Before(items[j].UpdatedAt)
+	})
 
 	orderToReturn.Items = items
 
@@ -493,7 +508,7 @@ func (store *InMemoryStore) UpdateOrderRow(ctx context.Context, orderID uuid.UUI
 		return fmt.Errorf("updating order on db: %w", book.ErrResponseOrderNotAcceptingItems)
 	}
 
-	order.UpdatedAt = time.Now()
+	order.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
 	if err := store.exc.Insert("order", order); err != nil {
 		return fmt.Errorf("updating order on db: %w", err)
 	}
@@ -519,10 +534,12 @@ func (store *InMemoryStore) UpsertOrderItem(ctx context.Context, orderID uuid.UU
 	orderItem := AdaptedOrderItem{}
 	if raw == nil {
 		orderItem = adaptOrderItemIdToString(orderID, itemToUpdt)
+		orderItem.CreatedAt = time.Now().UTC().Round(time.Millisecond)
+		orderItem.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
 	} else {
 		orderItem = raw.(AdaptedOrderItem)
 		orderItem.BookUnits = itemToUpdt.BookUnits
-		orderItem.UpdatedAt = itemToUpdt.UpdatedAt
+		orderItem.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
 	}
 
 	if err := store.exc.Insert("books_orders", orderItem); err != nil {
