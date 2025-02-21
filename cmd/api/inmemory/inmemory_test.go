@@ -1,62 +1,26 @@
-package database_test
+package inmemory_test
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/books-service/cmd/api/book"
-	"github.com/books-service/cmd/api/database"
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/books-service/cmd/api/inmemory"
 	"github.com/google/uuid"
 	"github.com/matryer/is"
-
-	_ "github.com/golang-migrate/migrate/v4/source/file"
-
-	_ "github.com/lib/pq"
 )
 
-var store *database.Store
-var sqlDB *sql.DB
 var ctx context.Context = context.Background()
 
-// TestMain is called before all the tests run.
-// Usually is where we add logic to initialise resources.
-func TestMain(m *testing.M) {
-	// Setting up the database for tests.
-	var err error
-	connStr := os.Getenv("DATABASE_URL")
-	sqlDB, err = database.ConnectDb(connStr)
+func TestCreateBook(t *testing.T) {
+	store, err := inmemory.NewInMemoryStore()
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	store = database.NewStore(sqlDB)
-	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
-	err = database.MigrationUp(store, path)
-	if err != nil {
-		if !errors.Is(err, migrate.ErrNoChange) {
-			log.Fatalln(err)
-		}
-		log.Println(err)
-	}
-
-	os.Exit(m.Run())
-}
-
-func TestCreateBook(t *testing.T) {
-	// Removing all data from the test database.
-	// We don't want to the database to be tainted with
-	// this test data in another tests.
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
 
 	t.Run("creates a book without errors", func(t *testing.T) {
 		is := is.New(t)
@@ -75,10 +39,12 @@ func TestCreateBook(t *testing.T) {
 		compareBooks(is, newBook, b)
 	})
 }
+
 func TestArchiveStatusBook(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	t.Run("archives a book without errors", func(t *testing.T) {
 		is := is.New(t)
@@ -115,12 +81,13 @@ func TestArchiveStatusBook(t *testing.T) {
 		is.True(errors.Is(err, book.ErrResponseBookNotFound))
 		compareBooks(is, archivedBook, book.Book{})
 	})
-
 }
+
 func TestUpdateBook(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	t.Run("updates a book without errors", func(t *testing.T) {
 		is := is.New(t)
@@ -169,9 +136,10 @@ func TestUpdateBook(t *testing.T) {
 }
 
 func TestGetBook(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	t.Run("Gets a book by ID without errors", func(t *testing.T) {
 		is := is.New(t)
@@ -205,9 +173,11 @@ func TestGetBook(t *testing.T) {
 }
 
 func TestListBooks(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	is := is.New(t)
 	var testBookslist []book.Book
@@ -216,28 +186,27 @@ func TestListBooks(t *testing.T) {
 	t.Run("List books without errors even if there is no books in the database", func(t *testing.T) {
 		is := is.New(t)
 
-		// Write the List Books test here.
-		returnedBooks, err := store.ListBooks(ctx, "", 0.00, 9999.99, "name", "asc", true, 30, 0)
+		returnedBooks, err := store.ListBooks(ctx, "", 0.00, 9999.99, "name", "asc", true, 1, 10)
 		is.NoErr(err)
 		is.Equal(returnedBooks, []book.Book{})
-	})
 
-	// Setting up, creating books to be listed.
-	for i := 0; i < listSize; i++ {
-		b := book.Book{
-			ID:        uuid.New(),
-			Name:      fmt.Sprintf("Book number %06v", i),
-			Price:     toPointer(float32((i * 100) + 1)),
-			Inventory: toPointer(i + 1),
-			CreatedAt: time.Now().UTC().Round(time.Millisecond),
-			UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+		// Setting up, creating books to be listed.
+		for i := 0; i < listSize; i++ {
+			b := book.Book{
+				ID:        uuid.New(),
+				Name:      fmt.Sprintf("Book number %06v", i),
+				Price:     toPointer(float32((i * 100) + 1)),
+				Inventory: toPointer(i + 1),
+				CreatedAt: time.Now().UTC().Round(time.Millisecond),
+				UpdatedAt: time.Now().UTC().Round(time.Millisecond),
+			}
+
+			newBook, err := store.CreateBook(ctx, b)
+			is.NoErr(err)
+			compareBooks(is, newBook, b)
+			testBookslist = append(testBookslist, b)
 		}
-
-		newBook, err := store.CreateBook(ctx, b)
-		is.NoErr(err)
-		compareBooks(is, newBook, b)
-		testBookslist = append(testBookslist, b)
-	}
+	})
 
 	t.Run("List all books, no filtering, without errors.", func(t *testing.T) {
 		is := is.New(t)
@@ -373,40 +342,11 @@ func TestListBooks(t *testing.T) {
 	})
 }
 
-func TestDownMigrations(t *testing.T) {
-	is := is.New(t)
-	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
-	is.NoErr(err)
-
-	m, err := migrate.NewWithDatabaseInstance(
-		fmt.Sprintf("file://%s", "../../../migrations"),
-		"postgres", driver)
-	is.NoErr(err)
-
-	t.Cleanup(func() {
-		is.NoErr(m.Up())
-	})
-
-	err = m.Down()
-	is.NoErr(err)
-	sqlStatement := `SELECT EXISTS (
-		SELECT FROM 
-			pg_tables
-		WHERE 
-			schemaname = 'public' AND 
-			tablename  = 'bookstable'
-		);`
-	check := sqlDB.QueryRow(sqlStatement)
-	var tableExists bool
-	err = check.Scan(&tableExists)
-	is.NoErr(err)
-	is.True(!tableExists)
-}
-
 func TestCreateOrder(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	t.Run("creates an order with a generic user", func(t *testing.T) {
 		is := is.New(t)
@@ -426,9 +366,10 @@ func TestCreateOrder(t *testing.T) {
 }
 
 func TestListOrderItems(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	is := is.New(t)
 	var testBookslist []book.Book
@@ -474,11 +415,13 @@ func TestListOrderItems(t *testing.T) {
 			//changing books into itemsAtOrder:
 			bkItem := book.OrderItem{
 				BookID:           bk.ID,
+				BookName:         bk.Name,
 				BookUnits:        bookUnits,
 				BookPriceAtOrder: bk.Price,
 			}
 
 			bookAtOrder, err := store.UpsertOrderItem(ctx, o.OrderID, bkItem)
+			time.Sleep(1 * time.Millisecond)
 			is.NoErr(err)
 			storedList = append(storedList, bookAtOrder)
 		}
@@ -503,9 +446,10 @@ func TestListOrderItems(t *testing.T) {
 
 // Tests all methods of the transaction togheter
 func TestUpdateOrderTx(t *testing.T) {
-	t.Cleanup(func() {
-		teardownDB(t)
-	})
+	store, err := inmemory.NewInMemoryStore()
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	is := is.New(t)
 	var testBookslist []book.Book
@@ -550,14 +494,15 @@ func TestUpdateOrderTx(t *testing.T) {
 		BookID := testBookslist[0].ID
 		BookUnitsToAdd := 2 //In this subtest we are ADDING a book to an order, so BookUnits starts from zero and is supposed to result 2.
 
-		txRepo, tx, err := store.BeginTx(ctx, nil) //creates a new 'Store' with same sql.db, but with a sql.tx as the 'Executor'
+		txRepo, tx, err := store.BeginTx(ctx, nil)
 		is.NoErr(err)
 
 		defer func() {
 			rollbackErr := tx.Rollback()
-			is.True(errors.Is(rollbackErr, sql.ErrTxDone))
+			is.True(errors.Is(rollbackErr, nil))
 		}()
 
+		time.Sleep(time.Millisecond)
 		err = txRepo.UpdateOrderRow(ctx, OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
 		is.NoErr(err)
 
@@ -583,6 +528,7 @@ func TestUpdateOrderTx(t *testing.T) {
 		}
 
 		bookAtOrder, err = txRepo.UpsertOrderItem(ctx, OrderID, bkItem)
+		time.Sleep(time.Millisecond) //To mock comparison between CreatedAt an UpdatedAt in the next substest
 		is.NoErr(err)
 		is.Equal(bkItem.BookID, bookAtOrder.BookID)
 		//is.Equal(bkItem.BookName, bookAtOrder.BookName)
@@ -592,7 +538,7 @@ func TestUpdateOrderTx(t *testing.T) {
 
 		//Updating book inventory acordingly at bookstable:
 		*bk.Inventory = balance
-		bk.UpdatedAt = time.Now().UTC().Round(time.Millisecond)
+		bk.UpdatedAt = time.Now().UTC().Round(time.Millisecond).Add(time.Millisecond)
 		bkUpdt, err := txRepo.UpdateBook(ctx, bk)
 		is.NoErr(err)
 		compareBooks(is, bk, bkUpdt)
@@ -627,7 +573,7 @@ func TestUpdateOrderTx(t *testing.T) {
 
 		defer func() {
 			rollbackErr := tx.Rollback()
-			is.True(errors.Is(rollbackErr, sql.ErrTxDone))
+			is.True(errors.Is(rollbackErr, nil))
 		}()
 
 		err = txRepo.UpdateOrderRow(ctx, OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
@@ -693,7 +639,7 @@ func TestUpdateOrderTx(t *testing.T) {
 
 		defer func() {
 			rollbackErr := tx.Rollback()
-			is.True(errors.Is(rollbackErr, sql.ErrTxDone))
+			is.True(errors.Is(rollbackErr, nil))
 		}()
 
 		err = txRepo.UpdateOrderRow(ctx, OrderID) //changes field 'updated_at' and checks if the order is 'accepting_items'
@@ -740,6 +686,10 @@ func TestUpdateOrderTx(t *testing.T) {
 	})
 }
 
+func toPointer[T any](v T) *T {
+	return &v
+}
+
 // compareBooks asserts that two books are equal,
 // handling time.Time values correctly.
 func compareBooks(is *is.I, a, b book.Book) {
@@ -770,19 +720,4 @@ func compareOrders(is *is.I, a, b book.Order) {
 
 	// Assert that they are equal.
 	is.Equal(a, b)
-}
-
-func toPointer[T any](v T) *T {
-	return &v
-}
-
-func teardownDB(t *testing.T) {
-	is := is.New(t)
-
-	// Truncating books table, cleaning up all the records.
-	result, err := sqlDB.Exec(`TRUNCATE TABLE public.bookstable, public.users, public.orders, public.books_orders, public.payments CASCADE`)
-	is.NoErr(err)
-
-	_, err = result.RowsAffected()
-	is.NoErr(err)
 }

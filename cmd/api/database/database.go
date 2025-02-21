@@ -370,7 +370,7 @@ DELETE FROM books_orders
 WHERE order_id = $1 AND book_id = $2;`
 	_, err := store.exc.ExecContext(ctx, sqlStatement, orderID, bookID)
 	if err != nil {
-		return fmt.Errorf("updating order on db: %w", err)
+		return fmt.Errorf("deleting item from order on db: %w", err)
 	}
 	return nil
 }
