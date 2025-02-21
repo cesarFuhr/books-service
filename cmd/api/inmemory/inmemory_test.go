@@ -528,6 +528,7 @@ func TestUpdateOrderTx(t *testing.T) {
 		}
 
 		bookAtOrder, err = txRepo.UpsertOrderItem(ctx, OrderID, bkItem)
+		time.Sleep(time.Millisecond) //To mock comparison between CreatedAt an UpdatedAt in the next substest
 		is.NoErr(err)
 		is.Equal(bkItem.BookID, bookAtOrder.BookID)
 		//is.Equal(bkItem.BookName, bookAtOrder.BookName)
