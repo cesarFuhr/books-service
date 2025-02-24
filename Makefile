@@ -1,10 +1,17 @@
-up:
-	docker compose up -d --build
+up inmemory:
+	docker compose -f docker-compose.inmemory.yml up -d --build
 
-down:
-	docker compose down
+down inmemory:
+	docker compose -f docker-compose.inmemory.yml down
+
+up postgres:
+	docker compose -f docker-compose.postgres.yml up -d --build
+
+down postgres:
+	docker compose -f docker-compose.postgres.yml down
 
 test: test-env-up
+	STORAGE_TYPE='postgres' \
 	DATABASE_URL='postgres://root:root@localhost:5432/booksdb?sslmode=disable' \
 	DATABASE_MIGRATIONS_PATH='../../../migrations' \
 	go test -p=1 ./...

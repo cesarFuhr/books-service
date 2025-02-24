@@ -77,7 +77,7 @@ func (s *Service) CreateBook(ctx context.Context, req CreateBookRequest) (Book, 
 		Inventory: req.Inventory,
 		CreatedAt: createdAt,
 		UpdatedAt: createdAt,
-		//Archived is set to false by defalut inside database
+		Archived:  false,
 	}
 
 	b, err := s.repo.CreateBook(ctx, newBook)
