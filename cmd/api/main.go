@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -14,9 +15,11 @@ import (
 	"time"
 
 	"github.com/books-service/cmd/api/book"
+	"github.com/books-service/cmd/api/database"
 	bookhttp "github.com/books-service/cmd/api/http"
 	"github.com/books-service/cmd/api/inmemory"
 	"github.com/books-service/cmd/api/notifications"
+	"github.com/golang-migrate/migrate/v4"
 )
 
 func main() {
@@ -28,29 +31,41 @@ func main() {
 }
 
 func run() error {
-	/* USING POSTGRES DATABASE:
-	//connect to db:
-	connStr := os.Getenv("DATABASE_URL")
-	dbObject, errConn := database.ConnectDb(connStr)
-	if err != nil {
-		return fmt.Errorf("connecting with db: %w", errConn)
-	}
+	var err error
+	var store book.Repository
+	//get storage type config:
+	storageType := os.Getenv("STORAGE_TYPE")
+	switch storageType {
+	case "postgres":
 
-	defer dbObject.Close()
+		//connect to db:
+		connStr := os.Getenv("DATABASE_URL")
+		dbObject, err := database.ConnectDb(connStr)
+		if err != nil {
+			return fmt.Errorf("connecting with db: %w", err)
+		}
 
-	//apply migrations:
-	store := database.NewStore(dbObject)
-	path := os.Getenv("DATABASE_MIGRATIONS_PATH")
-	err = database.MigrationUp(store, path)
-	if err != nil && !errors.Is(err, migrate.ErrNoChange) {
-		return fmt.Errorf("migrating: %w", err)
-	}
-	*/
+		defer func(*sql.DB) {
+			dbObject.Close()
+		}(dbObject)
 
-	//USING IN MEMORY STORAGE:
-	store, err := inmemory.NewInMemoryStore()
-	if err != nil {
-		return fmt.Errorf("initializing in-memory database: %w", err)
+		//apply migrations:
+		storePostgres := database.NewStore(dbObject)
+		path := os.Getenv("DATABASE_MIGRATIONS_PATH")
+		err = database.MigrationUp(storePostgres, path)
+		if err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return fmt.Errorf("migrating: %w", err)
+		}
+		store = storePostgres
+
+	case "in_memory":
+
+		store, err = inmemory.NewInMemoryStore()
+		if err != nil {
+			return fmt.Errorf("initializing in-memory database: %w", err)
+		}
+	default:
+		return fmt.Errorf("storage type get from env must be 'postgres' or 'in_memory'")
 	}
 
 	//get request timeout from environment:
